@@ -604,16 +604,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
                   child: _buildCameraBackground(),
                 ),
               ),
-            
-            // Frame Overlay
-            Positioned.fill(
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 80),
-                  child: _buildScanFrame(),
-                ),
-              ),
-            ),
+
             
             // Guide Overlays
             if (_currentMode == ScanMode.guide && _currentState == ScanState.cameraReady)
