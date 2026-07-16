@@ -57,7 +57,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
   bool _isFrontCamera = false;
   
   ScanState _currentState = ScanState.idle;
-  ScanMode _currentMode = ScanMode.manual;
+  final ScanMode _currentMode = ScanMode.manual;
   FlashModeEnum _flashMode = FlashModeEnum.off;
   String _errorMessage = '';
   
@@ -66,7 +66,6 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
   double _maxAvailableZoom = 1.0;
   double _baseZoomLevel = 1.0;
   
-  Map<String, dynamic>? _scanResult;
   Uint8List? _imageBytes;
   Timer? _autoDetectTimer;
   
@@ -329,11 +328,8 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
     try {
       _autoDetectTimer?.cancel();
       HapticFeedback.mediumImpact();
-      
       setState(() {
         _errorMessage = '';
-        _scanResult = null;
-        _revealedKeys.clear();
         _imageBytes = null;
         _isBatchMode = false;
         _batchFiles.clear();
@@ -429,6 +425,9 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
       
       setState(() {
         _imageBytes = bytes;
+        _isBatchMode = true;
+        _batchFiles = [imageFile!];
+        _batchProcessedCount = 0;
         _currentState = ScanState.uploading;
       });
       
@@ -454,6 +453,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
       
       if (category == null || confidence < 0.85) {
         setState(() {
+          _isBatchMode = false;
           _currentState = ScanState.rejected;
         });
         HapticFeedback.heavyImpact();
@@ -465,7 +465,6 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
       if (!mounted) return;
       
       setState(() {
-        _scanResult = result;
         _currentState = ScanState.saving;
       });
       
@@ -474,7 +473,10 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
       
       if (!mounted) return;
       
-      setState(() => _currentState = ScanState.completed);
+      setState(() {
+        _batchProcessedCount = 1;
+        _currentState = ScanState.completed;
+      });
       HapticFeedback.lightImpact();
       Analytics.logEvent('Scan Completed', parameters: {'category': category});
       
@@ -683,7 +685,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
                 ),
               ),
               
-              if (_isBatchMode && _currentState.index >= ScanState.uploading.index)
+              if (_isBatchMode && _currentState != ScanState.rejected && _currentState != ScanState.error && _currentState.index >= ScanState.uploading.index)
                 Positioned.fill(
                   child: _buildBatchLoadingScreen(),
                 ),
@@ -810,14 +812,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
                 child: _buildQualityIndicators(),
               ),
             
-            // Status Card
-            if (!_isBatchMode && (_currentState.index >= ScanState.capturing.index || _currentState == ScanState.completed))
-              Positioned(
-                bottom: 120 + MediaQuery.of(context).padding.bottom,
-                left: 0,
-                right: 0,
-                child: _buildProgressCard().animate().slideY(begin: 1.0, end: 0.0, curve: Curves.easeOutCubic, duration: 400.ms),
-              ),
+
 
             // Bottom Controls
             if (!_isBatchMode || _currentState == ScanState.idle || _currentState == ScanState.cameraReady)
@@ -1222,126 +1217,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
     );
   }
 
-  Widget _buildProgressCard() {
-    String statusText = '';
-    int progressSteps = 0;
-    
-    switch (_currentState) {
-      case ScanState.capturing:
-      case ScanState.uploading:
-        statusText = 'Uploading image...'; progressSteps = 1; break;
-      case ScanState.geminiAnalysis:
-        statusText = 'Analyzing garment...'; progressSteps = 2; break;
-      case ScanState.parsing:
-        statusText = 'Extracting attributes...'; progressSteps = 3; break;
-      case ScanState.saving:
-        statusText = 'Saving wardrobe...'; progressSteps = 4; break;
-      case ScanState.completed:
-        statusText = 'Scan complete!'; progressSteps = 5; break;
-      case ScanState.rejected:
-        statusText = 'No clothing detected'; progressSteps = 0; break;
-      default: break;
-    }
-    
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                statusText,
-                style: AppTypography.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-              if (_currentState == ScanState.completed && _scanResult != null)
-                Text(
-                  '${((_scanResult!['confidence'] ?? 1.0) * 100).toInt()}%',
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
-                ).animate().fadeIn(),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(5, (index) {
-              final active = index < progressSteps;
-              return Expanded(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: active ? AppColors.primary : Colors.white12,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              );
-            }),
-          ),
-          if (_currentState == ScanState.completed) ...[
-            const SizedBox(height: 24),
-            Center(
-              child: Wrap(
-                spacing: 24,
-                runSpacing: 20,
-                alignment: WrapAlignment.center,
-                children: [
-                  _buildAttributeNode('Category', _scanResult?['category'], LucideIcons.shirt, 'category'),
-                  _buildAttributeNode('Color', _scanResult?['color'], LucideIcons.palette, 'color'),
-                  _buildAttributeNode('Fabric', _scanResult?['material'], LucideIcons.layers, 'material'),
-                  _buildAttributeNode('Pattern', _scanResult?['pattern'], LucideIcons.grid, 'pattern'),
-                  _buildAttributeNode('Brand', _scanResult?['brand'], LucideIcons.tag, 'brand'),
-                ],
-              ),
-            ),
-          ],
-          if (_currentState == ScanState.rejected) ...[
-            const SizedBox(height: 16),
-            const Text(
-              'Point the camera at a clothing item.',
-              style: TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _resetToCameraReady,
-                icon: const Icon(LucideIcons.refreshCcw),
-                label: const Text('Try Again'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                  foregroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 
-  Widget _buildAttributeNode(String label, dynamic value, IconData icon, String key) {
-    final isRevealed = _revealedKeys.contains(key);
-    if (!isRevealed) return const SizedBox.shrink();
-    
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: Colors.white, size: 24),
-        const SizedBox(height: 8),
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-        Text(value?.toString() ?? 'N/A', style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
-      ],
-    ).animate().slideY(begin: 0.2, end: 0, curve: Curves.easeOut).fadeIn(duration: 400.ms);
-  }
 }
 
 class _DynamicGarmentPainter extends CustomPainter {
