@@ -113,7 +113,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
             'first_name': firstName,
             'last_name': lastName,
           },
-          emailRedirectTo: kIsWeb ? 'http://<YOUR_LAN_IP>:5001' : 'io.supabase.closetos://login-callback',
+          emailRedirectTo: kIsWeb ? Uri.base.origin : 'io.supabase.closetos://login-callback',
         );
         
         debugPrint('SignUp response - User: ${response.user?.id}, Session: ${response.session != null}');
@@ -170,7 +170,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
     try {
       if (kIsWeb) {
         // On web, use Supabase's built-in OAuth flow which handles the redirect automatically
-        await Supabase.instance.client.auth.signInWithOAuth(OAuthProvider.google);
+        await Supabase.instance.client.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: kIsWeb ? Uri.base.origin : null,
+        );
         // The page will redirect to Google, so we don't do anything else here.
         // When it returns, the auth state listener in the router will redirect to /home.
       } else {
