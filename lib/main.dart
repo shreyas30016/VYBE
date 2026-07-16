@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -95,11 +96,128 @@ void main() async {
   );
 }
 
-class ClosetOSApp extends ConsumerWidget {
+class ClosetOSApp extends ConsumerStatefulWidget {
   const ClosetOSApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ClosetOSApp> createState() => _ClosetOSAppState();
+}
+
+class _ClosetOSAppState extends ConsumerState<ClosetOSApp> {
+  late final StreamSubscription<AuthState> _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.passwordRecovery) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final context = rootNavigatorKey.currentContext;
+          if (context != null) {
+            _showPasswordResetDialog(context);
+          }
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription.cancel();
+    super.dispose();
+  }
+
+  void _showPasswordResetDialog(BuildContext context) {
+    final passwordController = TextEditingController();
+    bool isLoading = false;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1E1E1E),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            title: const Text('Reset Password', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Enter your new password below.', style: TextStyle(color: Colors.white70)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'New Password',
+                    hintStyle: const TextStyle(color: Colors.white38),
+                    filled: true,
+                    fillColor: Colors.black26,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              if (isLoading)
+                const Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: CircularProgressIndicator(color: Color(0xFFC0FF00)),
+                )
+              else ...[
+                TextButton(
+                  onPressed: () {
+                    Supabase.instance.client.auth.signOut();
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFC0FF00),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  onPressed: () async {
+                    if (passwordController.text.length < 6) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Password must be at least 6 characters')),
+                      );
+                      return;
+                    }
+                    setState(() => isLoading = true);
+                    try {
+                      await Supabase.instance.client.auth.updateUser(
+                        UserAttributes(password: passwordController.text),
+                      );
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Password updated successfully!'), backgroundColor: Colors.green),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                        );
+                        setState(() => isLoading = false);
+                      }
+                    }
+                  },
+                  child: const Text('Update Password'),
+                ),
+              ],
+            ],
+          );
+        }
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeProvider);
     
     return MaterialApp.router(
