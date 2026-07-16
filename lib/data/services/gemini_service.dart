@@ -33,7 +33,7 @@ class GeminiService {
       }
 
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash',
+        model: 'gemini-1.5-flash',
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
@@ -142,7 +142,7 @@ class GeminiService {
       }
 
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash',
+        model: 'gemini-1.5-flash',
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
@@ -236,7 +236,7 @@ class GeminiService {
         }
 
         final model = GenerativeModel(
-          model: 'gemini-2.5-flash',
+          model: 'gemini-1.5-flash',
           apiKey: apiKey,
           generationConfig: GenerationConfig(
             responseMimeType: 'application/json',
@@ -345,7 +345,7 @@ INSTRUCTIONS:
       }
 
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash',
+        model: 'gemini-1.5-flash',
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
@@ -412,7 +412,7 @@ INSTRUCTIONS:
       }
 
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash',
+        model: 'gemini-1.5-flash',
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
@@ -471,7 +471,7 @@ Each object should be:
     for (int attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         final model = GenerativeModel(
-          model: 'gemini-2.5-flash',
+          model: 'gemini-1.5-flash',
           apiKey: dotenv.env['GEMINI_API_KEY'] ?? '',
         );
         
