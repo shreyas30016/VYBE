@@ -16,12 +16,20 @@ class RateLimitException implements Exception {
   String toString() => message;
 }
 
+String _currentGeminiModel = 'gemini-2.5-flash-lite';
+
 bool _isRateLimitError(dynamic e) {
   final str = e.toString().toLowerCase();
-  return str.contains('429') || 
+  final isRateLimit = str.contains('429') || 
          str.contains('quota') || 
          str.contains('rate limit') || 
          str.contains('too many requests');
+         
+  if (isRateLimit && _currentGeminiModel == 'gemini-2.5-flash-lite') {
+    debugPrint('Rate limit hit on 2.5-flash-lite. Downgrading to gemini-2-flash for future requests.');
+    _currentGeminiModel = 'gemini-2-flash';
+  }
+  return isRateLimit;
 }
 
 class GeminiService {
@@ -33,7 +41,7 @@ class GeminiService {
       }
 
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash-lite',
+        model: _currentGeminiModel,
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
@@ -142,7 +150,7 @@ class GeminiService {
       }
 
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash-lite',
+        model: _currentGeminiModel,
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
@@ -236,7 +244,7 @@ class GeminiService {
         }
 
         final model = GenerativeModel(
-          model: 'gemini-2.5-flash-lite',
+          model: _currentGeminiModel,
           apiKey: apiKey,
           generationConfig: GenerationConfig(
             responseMimeType: 'application/json',
@@ -345,7 +353,7 @@ INSTRUCTIONS:
       }
 
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash-lite',
+        model: _currentGeminiModel,
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
@@ -412,7 +420,7 @@ INSTRUCTIONS:
       }
 
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash-lite',
+        model: _currentGeminiModel,
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
@@ -471,7 +479,7 @@ Each object should be:
     for (int attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         final model = GenerativeModel(
-          model: 'gemini-2.5-flash-lite',
+          model: _currentGeminiModel,
           apiKey: dotenv.env['GEMINI_API_KEY'] ?? '',
         );
         
