@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -77,14 +78,16 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
   ];
   
   final List<String> _loadingPhrases = [
-    'Consulting the outfit gods...',
-    'Vibing with your wardrobe...',
-    'Finding the perfect drip...',
-    'Slaying this look...',
-    'Loading the drip...',
-    'Checking the aesthetics...',
+    'outfit gods fetching images 😎',
+    'summoning the drip 💧',
+    'cooking up some fresh looks 🍳',
+    'analyzing the aura ✨',
+    'finding your main character energy 🌟',
+    'unlocking premium style 💎',
+    'doing fashion math 🧮',
   ];
-  String _currentLoadingPhrase = 'Consulting the outfit gods...';
+  int _currentPhraseIndex = 0;
+  Timer? _phraseTimer;
   String _sessionId = DateTime.now().millisecondsSinceEpoch.toString();
   
   final TextEditingController _textController = TextEditingController();
@@ -261,13 +264,22 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
 
     setState(() {
       _showSuggestions = false;
-      _currentLoadingPhrase = (_loadingPhrases.toList()..shuffle()).first;
       _messages.add(ChatMessage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         text: text,
         isUser: true,
       ));
       _isLoading = true;
+      _currentPhraseIndex = 0;
+    });
+
+    _phraseTimer?.cancel();
+    _phraseTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (mounted) {
+        setState(() {
+          _currentPhraseIndex = (_currentPhraseIndex + 1) % _loadingPhrases.length;
+        });
+      }
     });
     
     _saveCurrentSession();
@@ -316,6 +328,7 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
       );
 
       if (mounted) {
+        _phraseTimer?.cancel();
         setState(() {
           if (suggestion != null) {
             _messages.add(ChatMessage(
@@ -339,10 +352,20 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
     } catch (e) {
       Analytics.logError('chat generation failed', e);
       if (mounted) {
+        _phraseTimer?.cancel();
         setState(() {
+          String errorText = "Oops, something went wrong. Please try again.";
+          if (e is RateLimitException || e.toString().contains('RateLimit')) {
+            errorText = "API Rate Limit Exceeded. Please try again in 30 seconds.";
+          } else if (e.toString().contains('Failed to generate recommendation')) {
+             errorText = "Sorry, I couldn't generate a recommendation. Please try again.";
+          } else {
+             errorText = "Oops, something went wrong: $e";
+          }
+          
           _messages.add(ChatMessage(
             id: DateTime.now().millisecondsSinceEpoch.toString(),
-            text: "Oops, something went wrong: $e",
+            text: errorText,
             isUser: false,
           ));
           _isLoading = false;
@@ -355,6 +378,7 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
 
   @override
   void dispose() {
+    _phraseTimer?.cancel();
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -418,7 +442,23 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
                             child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
                           ),
                           const SizedBox(width: 12),
-                          Text(_currentLoadingPhrase, style: const TextStyle(color: AppColors.textSecondary)),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 500),
+                            transitionBuilder: (Widget child, Animation<double> animation) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(animation),
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: Text(
+                              _loadingPhrases[_currentPhraseIndex],
+                              key: ValueKey<int>(_currentPhraseIndex),
+                              style: const TextStyle(color: AppColors.textSecondary),
+                            ),
+                          ),
                         ],
                       ),
                     ),
