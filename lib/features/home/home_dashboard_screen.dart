@@ -30,8 +30,19 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
     final uid = Supabase.instance.client.auth.currentUser?.id ?? 'local';
     final userProfileAsync = ref.watch(userProfileProvider(uid));
     
-    final firstName = userProfileAsync.valueOrNull?.name.split(' ').first ?? 'Shreyas';
-    final avatarUrl = Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] as String?;
+    final userMetadata = Supabase.instance.client.auth.currentUser?.userMetadata;
+    final fallbackName = userMetadata?['full_name'] ?? userMetadata?['name'] ?? 'There';
+    final firstName = userProfileAsync.valueOrNull?.name.split(' ').first ?? fallbackName.split(' ').first;
+    
+    final avatarUrl = userMetadata?['avatar_url'] as String?;
+    
+    final hour = DateTime.now().hour;
+    String greeting = 'Good morning,';
+    if (hour >= 12 && hour < 17) {
+      greeting = 'Good afternoon,';
+    } else if (hour >= 17) {
+      greeting = 'Good evening,';
+    }
 
     final weatherAsync = ref.watch(currentWeatherProvider);
     final outfitHistoryAsync = ref.watch(outfitHistoryProvider);
@@ -84,7 +95,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Good morning,',
+                        greeting,
                         style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 4),
