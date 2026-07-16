@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/clothing_item.dart';
 import '../../core/utils/analytics.dart';
-
+import '../../core/utils/hive_setup.dart';
 abstract class WardrobeRepository {
   Future<void> addItem(ClothingItem item);
   Future<void> updateItem(ClothingItem item);
@@ -18,7 +18,10 @@ abstract class WardrobeRepository {
 class WardrobeRepositoryImpl implements WardrobeRepository {
   final SupabaseClient? supabase;
   final String uid;
-  Future<Box<Map>> get _box async => await Hive.openBox<Map>('clothing_items_$uid');
+  Future<Box<Map>> get _box async {
+    await openHiveBoxes(uid);
+    return Hive.box<Map>('clothing_items_$uid');
+  }
 
   final Function(bool)? onOfflineStatusChanged;
 

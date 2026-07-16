@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/outfit.dart';
 import '../../core/utils/analytics.dart';
-
+import '../../core/utils/hive_setup.dart';
 abstract class OutfitRepository {
   Future<void> saveOutfit(Outfit outfit);
   Future<void> deleteOutfit(String id);
@@ -14,7 +14,10 @@ abstract class OutfitRepository {
 class OutfitRepositoryImpl implements OutfitRepository {
   final SupabaseClient? supabase;
   final String uid;
-  Future<Box<Map>> get _box async => await Hive.openBox<Map>('outfits_$uid');
+  Future<Box<Map>> get _box async {
+    await openHiveBoxes(uid);
+    return Hive.box<Map>('outfits_$uid');
+  }
 
   OutfitRepositoryImpl({this.supabase, required this.uid});
 

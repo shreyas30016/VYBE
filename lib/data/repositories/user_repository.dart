@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/user_profile.dart';
-
+import '../../core/utils/hive_setup.dart';
 abstract class UserRepository {
   Future<void> updateProfile(UserProfile profile);
   Stream<UserProfile?> getProfile(String userId);
@@ -13,7 +13,10 @@ class UserRepositoryImpl implements UserRepository {
   final SupabaseClient? supabase;
   final String uid;
 
-  Future<Box<Map>> get _box async => await Hive.openBox<Map>('user_profiles_$uid');
+  Future<Box<Map>> get _box async {
+    await openHiveBoxes(uid);
+    return Hive.box<Map>('user_profiles_$uid');
+  }
 
   UserRepositoryImpl({this.supabase, required this.uid});
 
