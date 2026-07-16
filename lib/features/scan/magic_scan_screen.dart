@@ -122,6 +122,14 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
     );
     
     await _cameraController!.initialize();
+    
+    try {
+      final minZoom = await _cameraController!.getMinZoomLevel();
+      await _cameraController!.setZoomLevel(minZoom);
+    } catch (e) {
+      debugPrint('Zoom not supported: $e');
+    }
+    
     await _applyFlashMode();
     
     if (mounted) {
@@ -169,6 +177,17 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
       }
     });
     _applyFlashMode();
+  }
+
+  void _flipCamera() async {
+    if (_cameras.length < 2) return;
+    
+    final currentIndex = _cameras.indexWhere((c) => c.lensDirection == _cameraController!.description.lensDirection);
+    final nextIndex = (currentIndex + 1) % _cameras.length;
+    
+    setState(() => _currentState = ScanState.idle);
+    await _cameraController?.dispose();
+    await _setupCamera(_cameras[nextIndex]);
   }
 
   void _startAutoDetectSimulation() {
@@ -615,24 +634,42 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
                           child: const Icon(LucideIcons.arrowLeft, color: Colors.white, size: 24),
                         ),
                       ),
-                      if (!_isFrontCamera)
-                        GestureDetector(
-                          onTap: _cycleFlashMode,
-                          child: Container(
-                            width: 48,
-                            height: 48,
-                            decoration: const BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
+                      Row(
+                        children: [
+                          if (_cameras.length > 1)
+                            GestureDetector(
+                              onTap: _flipCamera,
+                              child: Container(
+                                width: 48,
+                                height: 48,
+                                margin: EdgeInsets.only(right: _isFrontCamera ? 0 : 12),
+                                decoration: const BoxDecoration(
+                                  color: Colors.black54,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.cameraswitch, color: Colors.white, size: 24),
+                              ),
                             ),
-                            child: Icon(
-                              _flashMode == FlashModeEnum.on ? LucideIcons.zap : 
-                              _flashMode == FlashModeEnum.auto ? LucideIcons.zap : LucideIcons.zapOff,
-                              color: _flashMode != FlashModeEnum.off ? AppColors.primary : Colors.white, 
-                              size: 24,
+                          if (!_isFrontCamera)
+                            GestureDetector(
+                              onTap: _cycleFlashMode,
+                              child: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: const BoxDecoration(
+                                  color: Colors.black54,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  _flashMode == FlashModeEnum.on ? LucideIcons.zap : 
+                                  _flashMode == FlashModeEnum.auto ? LucideIcons.zap : LucideIcons.zapOff,
+                                  color: _flashMode != FlashModeEnum.off ? AppColors.primary : Colors.white, 
+                                  size: 24,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
