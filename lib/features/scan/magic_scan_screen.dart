@@ -824,7 +824,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 24 + MediaQuery.of(context).padding.bottom,
+                bottom: 0,
                 child: _buildBottomControls(),
               ),
           ],
@@ -1117,7 +1117,12 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
     final showProgress = isProcessing || _currentState == ScanState.completed;
     
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+      padding: EdgeInsets.only(
+        left: 32,
+        right: 32,
+        top: 24,
+        bottom: 24 + MediaQuery.of(context).padding.bottom,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
