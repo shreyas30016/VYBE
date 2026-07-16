@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -403,7 +404,14 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
 }
 
   Widget _buildItemImage(String imageUrl) {
-    if (imageUrl.startsWith('http') || imageUrl.startsWith('blob:')) {
+    if (imageUrl.startsWith('data:image')) {
+      final base64String = imageUrl.split(',').last;
+      return Image.memory(
+        base64Decode(base64String),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const Icon(LucideIcons.imageOff, color: AppColors.textSecondary),
+      );
+    } else if (imageUrl.startsWith('http') || imageUrl.startsWith('blob:')) {
       return Image.network(
         imageUrl,
         fit: BoxFit.cover,

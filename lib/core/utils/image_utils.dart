@@ -10,6 +10,13 @@ class ImageUtils {
     } else if (imageUrl.startsWith('assets/')) {
       return AssetImage(imageUrl);
     }
-    return CachedNetworkImageProvider(imageUrl);
+    else if (imageUrl.startsWith('blob:')) {
+      return NetworkImage(imageUrl);
+    } else if (imageUrl.startsWith('http')) {
+      return CachedNetworkImageProvider(imageUrl);
+    }
+    // Fallback for unexpected formats (like local file paths if not on Web)
+    // Note: To properly support mobile, you would use FileImage(File(imageUrl)) here
+    return NetworkImage(imageUrl);
   }
 }

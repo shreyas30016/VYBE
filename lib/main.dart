@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/utils/hive_setup.dart';
@@ -15,16 +14,16 @@ void main() async {
   // Prevent red/white screens on render crashes
   ErrorWidget.builder = (FlutterErrorDetails details) {
     debugPrint('Global UI Error: \${details.exception}');
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: Color(0xFF121212),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(32.0),
+            padding: EdgeInsets.all(32.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
+              children: [
                 Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
                 SizedBox(height: 16),
                 Text(
@@ -69,14 +68,7 @@ void main() async {
     debugPrint('Supabase keys not found in .env, running in local-only mode');
   }
   
-  // Initialize Google Sign In
-  final googleWebClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID'] ?? 'YOUR_WEB_CLIENT_ID';
-  try {
-    GoogleSignIn(clientId: googleWebClientId, serverClientId: googleWebClientId);
-  } catch (e) {
-    debugPrint('Google Sign In init failed: $e');
-  }
-  
+
   // Initialize Hive for offline cache
   await Hive.initFlutter();
   
@@ -98,12 +90,12 @@ class ClosetOSApp extends ConsumerWidget {
     final themeMode = ref.watch(themeProvider);
     
     return MaterialApp.router(
-      title: 'ClosetOS',
+      title: 'VYBE Ai',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      routerConfig: appRouter,
+      routerConfig: ref.watch(routerProvider),
     );
   }
 }

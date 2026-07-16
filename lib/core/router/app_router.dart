@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:async';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/home/home_dashboard_screen.dart';
 import '../../features/scan/magic_scan_screen.dart';
@@ -14,8 +16,12 @@ import '../../features/stylist/ai_stylist_chat_screen.dart';
 import '../../features/pack/packing_planner_screen.dart';
 import '../../features/auth/auth_screen.dart';
 import '../../features/settings/settings_screen.dart';
+import '../../features/profile/screens/app_settings_screen.dart';
+import '../../features/profile/screens/style_preferences_screen.dart';
+import '../../features/profile/screens/wardrobe_insights_screen.dart';
+import '../../features/profile/screens/notifications_settings_screen.dart';
 
-final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 class AnimatedBranchContainer extends StatefulWidget {
   final int currentIndex;
@@ -147,24 +153,43 @@ class _BreathingFabState extends State<BreathingFab> with SingleTickerProviderSt
   }
 }
 
-final appRouter = GoRouter(
-  navigatorKey: _rootNavigatorKey,
-  initialLocation: '/auth',
-  redirect: (context, state) {
-    final session = Supabase.instance.client.auth.currentSession;
-    final isGoingToAuth = state.matchedLocation == '/auth';
-    
-    if ((session == null || session.isExpired) && !isGoingToAuth) {
-      return '/auth';
-    }
-    
-    if (session != null && !session.isExpired && isGoingToAuth) {
-      return '/home';
-    }
-    
-    return null;
-  },
-  routes: [
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen(
+      (dynamic _) => notifyListeners(),
+    );
+  }
+
+  late final StreamSubscription<dynamic> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+
+final routerProvider = Provider<GoRouter>((ref) {
+  return GoRouter(
+    navigatorKey: rootNavigatorKey,
+    initialLocation: '/auth',
+    refreshListenable: GoRouterRefreshStream(Supabase.instance.client.auth.onAuthStateChange),
+    redirect: (context, state) {
+      final session = Supabase.instance.client.auth.currentSession;
+      final isGoingToAuth = state.matchedLocation == '/auth';
+      
+      if ((session == null || session.isExpired) && !isGoingToAuth) {
+        return '/auth';
+      }
+      
+      if (session != null && !session.isExpired && isGoingToAuth) {
+        return '/home';
+      }
+      
+      return null;
+    },
+    routes: [
     GoRoute(
       path: '/auth',
       builder: (context, state) => const AuthScreen(),
@@ -319,7 +344,7 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/magic-scan',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       pageBuilder: (context, state) => CustomTransitionPage(
         key: state.pageKey,
         child: const MagicScanScreen(),
@@ -336,21 +361,42 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/discover',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const AiDiscoverScreen(),
     ),
     GoRoute(
       path: '/pack',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const PackingPlannerScreen(),
     ),
     GoRoute(
       path: '/settings',
-      parentNavigatorKey: _rootNavigatorKey,
+      parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/settings/app',
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const AppSettingsScreen(),
+    ),
+    GoRoute(
+      path: '/settings/style',
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const StylePreferencesScreen(),
+    ),
+    GoRoute(
+      path: '/settings/insights',
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const WardrobeInsightsScreen(),
+    ),
+    GoRoute(
+      path: '/settings/notifications',
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const NotificationsSettingsScreen(),
     ),
   ],
 );
+});
 
 class _AnimatedNavItem extends StatelessWidget {
   final BuildContext context;

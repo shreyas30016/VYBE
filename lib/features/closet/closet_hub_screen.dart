@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/utils/image_utils.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../data/models/clothing_item.dart';
 import '../../core/components/glass_container.dart';
@@ -163,25 +163,43 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
   }
 
   Widget _buildGridItem(ClothingItem item, String score, String lastWorn, IconData placeholderIcon) {
-    return GlassContainer(
-      padding: EdgeInsets.zero,
-      child: Stack(
-        children: [
-          // Image Placeholder
-          Positioned.fill(
-            child: item.imageUrl.startsWith('http') 
-              ? CachedNetworkImage(
-                  imageUrl: item.imageUrl,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                  errorWidget: (context, url, error) => Icon(placeholderIcon, color: AppColors.textSecondary, size: 64),
-                )
-              : Image.asset(
-                  item.imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Icon(placeholderIcon, color: AppColors.textSecondary, size: 64),
-                ),
+    return GestureDetector(
+      onLongPress: () {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppColors.card,
+            title: const Text('Delete Item', style: TextStyle(color: Colors.white)),
+            content: const Text('Are you sure you want to delete this item from your wardrobe?', style: TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+              ),
+              TextButton(
+                onPressed: () {
+                  ref.read(wardrobeRepositoryProvider).deleteItem(item.id);
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+              ),
+            ],
           ),
+        );
+      },
+      child: GlassContainer(
+        enableBlur: false,
+        padding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            // Image Placeholder
+            Positioned.fill(
+              child: Image(
+                image: ImageUtils.getImageProvider(item.imageUrl),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Icon(placeholderIcon, color: AppColors.textSecondary, size: 64),
+              ),
+            ),
           
           // Harmony Badge (Top Right)
           Positioned(
@@ -214,6 +232,7 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

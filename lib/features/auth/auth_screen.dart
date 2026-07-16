@@ -1,12 +1,11 @@
 import 'dart:ui';
+import 'dart:async';
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:go_router/go_router.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/components/glass_container.dart';
@@ -25,6 +24,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
   bool _isLoginState = true;
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  
+  Timer? _rateLimitTimer;
+  int _rateLimitSeconds = 0;
 
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -42,6 +44,29 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
     )..repeat();
   }
 
+  void _startRateLimitTimer() {
+    setState(() => _rateLimitSeconds = 45);
+    _rateLimitTimer?.cancel();
+    _rateLimitTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_rateLimitSeconds > 0) {
+        setState(() => _rateLimitSeconds--);
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _bgAnimController.dispose();
+    _rateLimitTimer?.cancel();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   void _toggleState() {
     setState(() {
       _isLoginState = !_isLoginState;
@@ -49,6 +74,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
   }
 
   void _handleSubmit() async {
+    if (_rateLimitSeconds > 0) return;
+
     final firstName = _firstNameController.text.trim();
     final lastName = _lastNameController.text.trim();
     final email = _emailController.text.trim();
@@ -72,12 +99,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
     
     try {
       if (_isLoginState) {
+        debugPrint('Attempting signInWithPassword');
         await Supabase.instance.client.auth.signInWithPassword(
           email: email,
           password: password,
         );
       } else {
-        await Supabase.instance.client.auth.signUp(
+        debugPrint('Attempting signUp');
+        final response = await Supabase.instance.client.auth.signUp(
           email: email,
           password: password,
           data: {
@@ -86,20 +115,35 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
           },
           emailRedirectTo: kIsWeb ? 'http://<YOUR_LAN_IP>:5001' : 'io.supabase.closetos://login-callback',
         );
+        
+        debugPrint('SignUp response - User: ${response.user?.id}, Session: ${response.session != null}');
+        
+        if (response.session == null && response.user != null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Account created! Please check your email to verify your account.')),
+            );
+            setState(() => _isLoading = false);
+            return;
+          }
+        }
       }
       
       final uid = Supabase.instance.client.auth.currentUser?.id;
       if (uid != null) {
+        debugPrint('Opening Hive boxes for uid: $uid');
         await openHiveBoxes(uid);
       }
       
-      if (mounted) {
-        context.go('/home');
-      }
+      // Removed context.go('/home') because app_router handles AuthState changes automatically.
     } on AuthException catch (error) {
       if (mounted) {
         String message = error.message;
-        if (message.contains('issued at future') || message.contains('PGRST303')) {
+        debugPrint('AuthException: ${error.statusCode} - ${error.message}');
+        if (error.statusCode == '429' || message.toLowerCase().contains('too many requests') || message.toLowerCase().contains('rate limit')) {
+          _startRateLimitTimer();
+          message = 'For security purposes, you can only request this after 45 seconds.';
+        } else if (message.contains('issued at future') || message.contains('PGRST303')) {
           message = 'Your device clock is ahead of the server. Please set your PC time to Automatic and try again.';
         }
         ScaffoldMessenger.of(context).showSnackBar(
@@ -108,6 +152,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
       }
     } catch (error) {
       if (mounted) {
+        debugPrint('Unexpected error: $error');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('An unexpected error occurred'), backgroundColor: Colors.red),
         );
@@ -147,13 +192,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
         final uid = Supabase.instance.client.auth.currentUser?.id;
         if (uid != null) {
           await openHiveBoxes(uid);
-          if (mounted) context.go('/home');
         }
       }
     } on AuthException catch (error) {
       if (mounted) {
         String message = error.message;
-        if (message.contains('issued at future') || message.contains('PGRST303')) {
+        if (error.statusCode == '429' || message.toLowerCase().contains('too many requests')) {
+          _startRateLimitTimer();
+          message = 'For security purposes, you can only request this after 45 seconds.';
+        } else if (message.contains('issued at future') || message.contains('PGRST303')) {
           message = 'Your device clock is ahead of the server. Please set your PC time to Automatic and try again.';
         }
         ScaffoldMessenger.of(context).showSnackBar(
@@ -162,8 +209,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
       }
     } catch (error) {
       if (mounted) {
+        debugPrint('Google Sign-In Error: $error');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString()), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Google Sign-In failed'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -174,22 +222,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
   }
 
   @override
-  void dispose() {
-    _bgAnimController.dispose();
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.background,
       body: Stack(
         children: [
-          // Moving Ambient Glow
           AnimatedBuilder(
             animation: _bgAnimController,
             builder: (context, child) {
@@ -221,23 +258,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0), // margin-mobile
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Logo Area
                     Text(
-                      'ClosetOS',
+                      'VYBE Ai',
                       style: AppTypography.headingLarge.copyWith(
                         color: context.primary,
-                        fontSize: 48, // display-lg
+                        fontSize: 48,
                         letterSpacing: -0.02 * 48,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     Text(
-                      _isLoginState ? 'Welcome Back' : 'Create Your Closet',
+                      _isLoginState ? 'Welcome Back' : 'Create Your VYBE',
                       style: AppTypography.headingLarge,
                     ),
                     const SizedBox(height: AppSpacing.sm),
@@ -247,13 +283,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
                     ),
                     const SizedBox(height: 48),
 
-                    // Main Form Card
                     GlassContainer(
                       padding: const EdgeInsets.all(32.0),
                       borderRadius: 32.0,
                       child: Column(
                         children: [
-                          // Google Auth Button
                           InkWell(
                             onTap: _isLoading ? null : _handleGoogleSignIn,
                             borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
@@ -268,7 +302,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  // Simplified Google icon approach
                                   Image.asset(
                                     'assets/images/google_logo.png',
                                     width: 24,
@@ -293,7 +326,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
                           
                           const SizedBox(height: AppSpacing.lg),
                           
-                          // Divider
                           Row(
                             children: [
                               Expanded(child: Divider(color: context.strokeSubtle)),
@@ -313,7 +345,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
                           
                           const SizedBox(height: AppSpacing.lg),
                           
-                          // Form Fields
                           if (!_isLoginState) ...[
                             Row(
                               children: [
@@ -446,9 +477,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
                           
                           // Primary CTA
                           PrimaryButton(
-                            label: _isLoginState ? 'Sign In' : 'Sign Up',
+                            label: _rateLimitSeconds > 0
+                                ? 'Wait \${_rateLimitSeconds}s'
+                                : _isLoginState ? 'Sign In' : 'Sign Up',
                             isLoading: _isLoading,
-                            onPressed: _handleSubmit,
+                            onPressed: _rateLimitSeconds > 0 ? () {} : _handleSubmit,
                           ),
                         ],
                       ),

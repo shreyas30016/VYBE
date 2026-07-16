@@ -46,17 +46,37 @@ class GeminiService {
       }
 
       final prompt = TextPart('''
-        Analyze this clothing or accessory item. Return ONLY a valid JSON object with no markdown formatting or extra text.
-        The JSON must match this structure exactly:
+        Analyze this image. Your primary task is to DETERMINE IF THE OBJECT IS CLOTHING, FOOTWEAR, OR A FASHION BAG.
+        
+        ALLOWED CATEGORIES ONLY:
+        Shirts, T-Shirts, Hoodies, Jackets, Sweaters, Dresses, Pants, Jeans, Shorts, Skirts, Shoes, Sneakers, Boots, Hats, Bags, Scarves, Belts, Ties.
+
+        IMMEDIATELY REJECT THE FOLLOWING:
+        Notebook, Paper, Laptop, Bottle, Phone, Book, Food, Chair, Table, Wall, Floor, Person, Face, Pet, Keyboard, Mouse, TV, Monitor, or any other non-clothing item.
+
+        If the object is rejected or NOT in the allowed list, you MUST return:
+        {
+          "category": null,
+          "subtype": null,
+          "color": null,
+          "material": null,
+          "pattern": null,
+          "season": null,
+          "confidence": 0.0
+        }
+
+        If it IS allowed clothing, return ONLY a valid JSON object matching this structure EXACTLY:
         {
           "category": "String (e.g. Tops, Bottoms, Outerwear, Footwear, Accessories)",
-          "subtype": "String (e.g. Watch, Bracelet, Bag, Belt, Necklace, Sunglasses) or null if not an accessory",
+          "subtype": "String (e.g. T-Shirt, Jeans, Bag)",
           "color": "String (e.g. Navy Blue, Red)",
           "material": "String (e.g. Cotton, Denim) or null",
           "pattern": "String (e.g. Solid, Striped) or null",
           "season": "String (e.g. Summer, Winter, All) or null",
-          "confidence": number (0.0 to 1.0)
+          "confidence": number (0.85 to 1.0)
         }
+        
+        Do not include markdown blocks or extra text. ONLY return the JSON.
       ''');
 
       final imageParts = [
@@ -205,14 +225,14 @@ class GeminiService {
         final systemPrompt = '''
 You are an expert AI fashion stylist. The user is asking for outfit recommendations based on their real wardrobe.
 Here is the user's wardrobe inventory as a JSON list of items:
-\${jsonEncode(wardrobeItems)}
+${jsonEncode(wardrobeItems)}
 
 INSTRUCTIONS:
 1. Recommend one or more cohesive outfits composed ONLY of items from the provided wardrobe list. If the user asks for a specific number of days (e.g. "3 days"), provide exactly that many distinct outfits. If not specified, provide 1 outfit.
-2. DO NOT hallucinate or invent item IDs that are not in the list.
+2. CRITICAL: The "itemIds" array MUST contain the EXACT literal "id" string from the items in the provided wardrobe list. DO NOT invent IDs, and DO NOT use placeholder IDs.
 3. Keep your reasoning brief, friendly, and directly tied to the occasion and weather.
 4. WEATHER/LOCATION LOGIC: 
-   - The user's CURRENT PHYSICAL LOCAL weather is: \${weatherContext ?? 'Unknown'}.
+   - The user's CURRENT PHYSICAL LOCAL weather is: ${weatherContext ?? 'Unknown'}.
    - CRITICAL: If the user's prompt mentions a specific destination or trip (e.g., "Iceland", "Manali", "Tokyo"), you MUST COMPLETELY IGNORE their local weather. Instead, use your general knowledge of that destination's typical climate.
    - Only use the local weather if they are dressing for today where they currently are.
 5. Return ONLY a valid JSON object matching this structure exactly (no markdown formatting, no extra text):
@@ -221,7 +241,7 @@ INSTRUCTIONS:
   "outfits": [
     {
       "title": "Day 1 - City Tour",
-      "itemIds": ["id1", "id2"]
+      "itemIds": ["<exact_id_from_json>", "<another_exact_id>"]
     }
   ]
 }
@@ -239,7 +259,7 @@ INSTRUCTIONS:
             
         final response = await chat.sendMessage(Content.text(finalPrompt));
         stopwatch.stop();
-        Analytics.logApiDuration('Gemini (generateOutfitRecommendation_attempt_\$attempt)', stopwatch.elapsed);
+        Analytics.logApiDuration('Gemini (generateOutfitRecommendation_attempt_$attempt)', stopwatch.elapsed);
 
         if (response.text != null) {
           var jsonText = response.text!.trim();
@@ -279,7 +299,7 @@ INSTRUCTIONS:
           return parsedJson;
         }
       } catch (e) {
-        debugPrint('Gemini styling error (attempt \$attempt): \$e');
+        debugPrint('Gemini styling error (attempt $attempt): $e');
         if (attempt == maxRetries) {
           throw Exception('Failed to generate recommendation. Please try again.');
         }

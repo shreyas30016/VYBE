@@ -42,16 +42,19 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildSettingsTile(String title, IconData icon, VoidCallback onTap) {
-    return ListTile(
-      tileColor: AppColors.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      leading: Icon(icon, color: AppColors.textPrimary, size: 24),
-      title: Text(
-        title,
-        style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary),
+    return Material(
+      color: AppColors.card,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        leading: Icon(icon, color: AppColors.textPrimary, size: 24),
+        title: Text(
+          title,
+          style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary),
+        ),
+        trailing: const Icon(LucideIcons.chevronRight, color: AppColors.textSecondary, size: 20),
+        onTap: onTap,
       ),
-      trailing: const Icon(LucideIcons.chevronRight, color: AppColors.textSecondary, size: 20),
-      onTap: onTap,
     );
   }
 }

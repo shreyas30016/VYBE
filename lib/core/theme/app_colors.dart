@@ -10,6 +10,8 @@ class AppColors {
   
   // UI Helpers 
   static const textPrimary = white;
+  static const textMuted = textSecondary;
+  static const accent = primary;
   static const stroke = Color(0xFF2A2A2A); 
   
   // States

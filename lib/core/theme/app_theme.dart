@@ -5,6 +5,7 @@ import 'app_typography.dart';
 class AppTheme {
   static ThemeData get darkTheme {
     return ThemeData(
+      fontFamilyFallback: const ['NotoSans'],
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.background,
       primaryColor: AppColors.primary,

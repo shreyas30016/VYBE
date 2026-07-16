@@ -58,7 +58,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.settings, color: AppColors.textPrimary),
-            onPressed: () {},
+            onPressed: () {
+              context.push('/settings/app');
+            },
           ),
           const SizedBox(width: AppSpacing.sm),
         ],
@@ -155,10 +157,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 32),
             
             // Settings List
-            _buildSettingsTile('Account Settings', LucideIcons.user),
-            _buildSettingsTile('Style Preferences', LucideIcons.sparkles),
-            _buildSettingsTile('Notifications', LucideIcons.bell),
-            _buildSettingsTile('Connect Accounts', LucideIcons.link),
+            _buildSettingsTile('Account', LucideIcons.user, '/settings'),
+            _buildSettingsTile('Style Preferences', LucideIcons.sparkles, '/settings/style'),
+            _buildSettingsTile('Wardrobe Insights', LucideIcons.barChart2, '/settings/insights'),
+            _buildSettingsTile('Notifications', LucideIcons.bell, '/settings/notifications'),
             
             const SizedBox(height: 32),
             
@@ -202,7 +204,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildSettingsTile(String title, IconData icon) {
+  Widget _buildSettingsTile(String title, IconData icon, String route) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: GlassContainer(
@@ -220,7 +222,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           trailing: const Icon(LucideIcons.chevronRight, color: AppColors.textSecondary, size: 20),
           onTap: () {
-            context.push('/settings');
+            context.push(route);
           },
         ),
       ),
