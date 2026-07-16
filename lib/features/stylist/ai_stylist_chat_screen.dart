@@ -14,6 +14,8 @@ import '../../providers/weather_provider.dart';
 import '../../core/utils/analytics.dart';
 import '../../core/components/glass_container.dart';
 import '../../core/components/ambient_background.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ChatMessage {
   final String id;
@@ -27,6 +29,24 @@ class ChatMessage {
     required this.isUser,
     this.outfits,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'text': text,
+      'isUser': isUser,
+      'outfits': outfits,
+    };
+  }
+
+  factory ChatMessage.fromJson(Map<dynamic, dynamic> json) {
+    return ChatMessage(
+      id: json['id'] as String? ?? '',
+      text: json['text'] as String? ?? '',
+      isUser: json['isUser'] as bool? ?? false,
+      outfits: json['outfits'] as List<dynamic>?,
+    );
+  }
 }
 
 class AiStylistChatScreen extends ConsumerStatefulWidget {
@@ -37,7 +57,7 @@ class AiStylistChatScreen extends ConsumerStatefulWidget {
 }
 
 class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
-  final List<ChatMessage> _messages = [
+  List<ChatMessage> _messages = [
     ChatMessage(
       id: '0',
       text: "Hey there! I'm your AI Stylist. Tell me what you're dressing for (e.g., 'I have a dinner date tonight' or 'What should I wear to the office tomorrow?').",
@@ -56,9 +76,167 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
     'Build today\'s outfit'
   ];
   
+  final List<String> _loadingPhrases = [
+    'Consulting the outfit gods...',
+    'Vibing with your wardrobe...',
+    'Finding the perfect drip...',
+    'Slaying this look...',
+    'Loading the drip...',
+    'Checking the aesthetics...',
+  ];
+  String _currentLoadingPhrase = 'Consulting the outfit gods...';
+  String _sessionId = DateTime.now().millisecondsSinceEpoch.toString();
+  
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentSession();
+  }
+
+  void _loadCurrentSession() {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+    try {
+      final box = Hive.box<Map>('chats_$uid');
+      if (box.isNotEmpty) {
+        final keys = box.keys.toList()..sort();
+        final lastKey = keys.last;
+        final sessionData = box.get(lastKey);
+        if (sessionData != null) {
+          final messagesData = sessionData['messages'] as List<dynamic>? ?? [];
+          if (messagesData.isNotEmpty) {
+            setState(() {
+              _sessionId = lastKey.toString();
+              _messages = messagesData.map((m) => ChatMessage.fromJson(m as Map)).toList();
+              _showSuggestions = _messages.length <= 1;
+            });
+            _scrollToBottom();
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading chat session: $e');
+    }
+  }
+
+  void _saveCurrentSession() {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+    try {
+      final box = Hive.box<Map>('chats_$uid');
+      box.put(_sessionId, {
+        'timestamp': DateTime.now().toIso8601String(),
+        'messages': _messages.map((m) => m.toJson()).toList(),
+      });
+    } catch (e) {
+      debugPrint('Error saving chat session: $e');
+    }
+  }
+
+  void _showChatHistory() {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+    
+    List<dynamic> keys = [];
+    Box<Map>? box;
+    try {
+      box = Hive.box<Map>('chats_$uid');
+      keys = box.keys.toList()..sort((a, b) => b.toString().compareTo(a.toString()));
+    } catch (e) {
+      debugPrint('Error reading history: $e');
+    }
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          height: 400,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Chat History', style: AppTypography.headingMedium.copyWith(color: Colors.white)),
+              const SizedBox(height: 16),
+              Expanded(
+                child: keys.isEmpty || box == null
+                    ? const Center(child: Text('No previous chats', style: TextStyle(color: Colors.grey)))
+                    : ListView.builder(
+                        itemCount: keys.length,
+                        itemBuilder: (context, index) {
+                          final key = keys[index];
+                          final session = box!.get(key);
+                          final messages = session?['messages'] as List<dynamic>? ?? [];
+                          final firstUserMsg = messages.firstWhere((m) => (m['isUser'] as bool?) == true, orElse: () => {'text': 'New Chat'});
+                          
+                          DateTime? date;
+                          try {
+                            date = DateTime.parse(session?['timestamp'] as String? ?? '');
+                          } catch (_) {}
+                          
+                          final dateStr = date != null ? '\${date.month}/\${date.day}/\${date.year}' : '';
+                          
+                          return ListTile(
+                            leading: const Icon(LucideIcons.messageSquare, color: AppColors.primary),
+                            title: Text(
+                              firstUserMsg['text'] as String? ?? 'Chat',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            subtitle: Text(
+                              dateStr,
+                              style: const TextStyle(color: Colors.white54, fontSize: 12),
+                            ),
+                            onTap: () {
+                              setState(() {
+                                _sessionId = key.toString();
+                                _messages = messages.map((m) => ChatMessage.fromJson(m as Map)).toList();
+                                _showSuggestions = _messages.length <= 1;
+                              });
+                              Navigator.pop(context);
+                              _scrollToBottom();
+                            },
+                          );
+                        },
+                      ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _sessionId = DateTime.now().millisecondsSinceEpoch.toString();
+                      _messages = [
+                        ChatMessage(
+                          id: '0',
+                          text: "Hey there! I'm your AI Stylist. Tell me what you're dressing for (e.g., 'I have a dinner date tonight' or 'What should I wear to the office tomorrow?').",
+                          isUser: false,
+                        ),
+                      ];
+                      _showSuggestions = true;
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Start New Chat', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -83,6 +261,7 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
 
     setState(() {
       _showSuggestions = false;
+      _currentLoadingPhrase = (_loadingPhrases.toList()..shuffle()).first;
       _messages.add(ChatMessage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         text: text,
@@ -91,6 +270,7 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
       _isLoading = true;
     });
     
+    _saveCurrentSession();
     _textController.clear();
     _scrollToBottom();
 
@@ -146,6 +326,7 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
           }
           _isLoading = false;
         });
+        _saveCurrentSession();
         _scrollToBottom();
       }
     } catch (e) {
@@ -159,6 +340,7 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
           ));
           _isLoading = false;
         });
+        _saveCurrentSession();
         _scrollToBottom();
       }
     }
@@ -186,6 +368,12 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
         ),
         title: Text('AI Stylist', style: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary)),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.history, color: AppColors.textPrimary),
+            onPressed: _showChatHistory,
+          ),
+        ],
       ),
       body: AmbientBackground(
         child: wardrobe.isEmpty
@@ -212,18 +400,18 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
                     ),
                   ),
                   if (_isLoading)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
                       child: Row(
                         children: [
-                          SizedBox(width: 16),
-                          SizedBox(
+                          const SizedBox(width: 16),
+                          const SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
                           ),
-                          SizedBox(width: 12),
-                          Text('Thinking...', style: TextStyle(color: AppColors.textSecondary)),
+                          const SizedBox(width: 12),
+                          Text(_currentLoadingPhrase, style: const TextStyle(color: AppColors.textSecondary)),
                         ],
                       ),
                     ),

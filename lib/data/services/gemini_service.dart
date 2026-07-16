@@ -231,11 +231,14 @@ INSTRUCTIONS:
 1. Recommend one or more cohesive outfits composed ONLY of items from the provided wardrobe list. If the user asks for a specific number of days (e.g. "3 days"), provide exactly that many distinct outfits. If not specified, provide 1 outfit.
 2. CRITICAL: The "itemIds" array MUST contain the EXACT literal "id" string from the items in the provided wardrobe list. DO NOT invent IDs, and DO NOT use placeholder IDs.
 3. Keep your reasoning brief, friendly, and directly tied to the occasion and weather.
-4. WEATHER/LOCATION LOGIC: 
+4. OCCASION AWARENESS:
+   - Carefully analyze the occasion requested (e.g., Gym, Office, Date, Travel).
+   - ONLY recommend clothing appropriate for that occasion (e.g., DO NOT recommend jeans for the gym, recommend activewear or comfortable clothes).
+5. WEATHER/LOCATION LOGIC: 
    - The user's CURRENT PHYSICAL LOCAL weather is: ${weatherContext ?? 'Unknown'}.
-   - CRITICAL: If the user's prompt mentions a specific destination or trip (e.g., "Iceland", "Manali", "Tokyo"), you MUST COMPLETELY IGNORE their local weather. Instead, use your general knowledge of that destination's typical climate.
+   - CRITICAL: If the user's prompt mentions a specific destination or trip (e.g., "Mumbai", "Iceland"), you MUST COMPLETELY IGNORE their local weather. Instead, use your vast knowledge base to determine the typical weather and climate for that destination and recommend clothes accordingly (e.g., light breathable clothes for Mumbai).
    - Only use the local weather if they are dressing for today where they currently are.
-5. Return ONLY a valid JSON object matching this structure exactly (no markdown formatting, no extra text):
+6. Return ONLY a valid JSON object matching this structure exactly (no markdown formatting, no extra text):
 {
   "aiReasoning": "Your friendly 1-2 sentence explanation...",
   "outfits": [
