@@ -759,14 +759,18 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
 
   Widget _buildCameraBackground() {
     if (_imageBytes != null) {
-      return Image.memory(_imageBytes!, fit: BoxFit.contain);
+      return Image.memory(_imageBytes!, fit: BoxFit.cover);
     }
     
     if (_currentState != ScanState.idle && _cameraController != null && _cameraController!.value.isInitialized) {
-      return Container(
-        color: Colors.black,
-        child: Center(
-          child: CameraPreview(_cameraController!),
+      return SizedBox.expand(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: _cameraController!.value.previewSize?.width ?? 1,
+            height: _cameraController!.value.previewSize?.height ?? 1,
+            child: CameraPreview(_cameraController!),
+          ),
         ),
       );
     }
