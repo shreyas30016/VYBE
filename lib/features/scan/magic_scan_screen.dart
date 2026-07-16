@@ -68,6 +68,18 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
   
   Uint8List? _imageBytes;
   Timer? _autoDetectTimer;
+  Timer? _phraseTimer;
+  int _currentPhraseIndex = 0;
+  
+  final List<List<String>> _loadingPhrases = [
+    ['outfit gods', 'fetching images 😎'],
+    ['summoning', 'the drip 💧'],
+    ['cooking up', 'some fresh looks 🍳'],
+    ['analyzing', 'the aura ✨'],
+    ['finding your', 'main character energy 🌟'],
+    ['unlocking', 'premium style 💎'],
+    ['doing', 'fashion math 🧮'],
+  ];
   
   bool _isBatchMode = false;
   List<XFile> _batchFiles = [];
@@ -264,10 +276,11 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
 
   @override
   void dispose() {
-    _autoDetectTimer?.cancel();
     _laserController.dispose();
-    _morphController.dispose();
     _frameController.dispose();
+    _morphController.dispose();
+    _autoDetectTimer?.cancel();
+    _phraseTimer?.cancel();
     _cameraController?.dispose();
     super.dispose();
   }
@@ -335,6 +348,15 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
         _batchFiles.clear();
         _batchResults.clear();
         _batchProcessedCount = 0;
+        _currentPhraseIndex = 0;
+      });
+      _phraseTimer?.cancel();
+      _phraseTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+        if (mounted) {
+          setState(() {
+            _currentPhraseIndex = (_currentPhraseIndex + 1) % _loadingPhrases.length;
+          });
+        }
       });
       
       if (source == ImageSource.gallery) {
@@ -414,6 +436,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
       }
       
       if (imageFile == null) {
+        _phraseTimer?.cancel();
         setState(() => _currentState = ScanState.cameraReady);
         _startAutoDetectSimulation();
         return;
@@ -452,6 +475,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
       final confidence = result?['confidence']?.toDouble() ?? 0.0;
       
       if (category == null || confidence < 0.85) {
+        _phraseTimer?.cancel();
         setState(() {
           _isBatchMode = false;
           _currentState = ScanState.rejected;
@@ -477,6 +501,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
         _batchProcessedCount = 1;
         _currentState = ScanState.completed;
       });
+      _phraseTimer?.cancel();
       HapticFeedback.lightImpact();
       Analytics.logEvent('Scan Completed', parameters: {'category': category});
       
@@ -484,6 +509,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
       
     } catch (e) {
       if (!mounted) return;
+      _phraseTimer?.cancel();
       setState(() {
         _isBatchMode = false;
         _currentState = ScanState.error;
@@ -881,7 +907,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
                           angle: -0.2, // ~ -11 degrees
                           child: _buildBatchCard(0, scale: 0.85),
                         ),
-                      ),
+                      ).animate(onPlay: (c) => c.repeat(reverse: true)).moveY(begin: 4, end: -4, duration: 2500.ms, curve: Curves.easeInOut),
                       // Right Card
                       Positioned(
                         right: MediaQuery.of(context).size.width * 0.1,
@@ -889,31 +915,48 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
                           angle: 0.2, // ~ 11 degrees
                           child: _buildBatchCard(2, scale: 0.85),
                         ),
-                      ),
+                      ).animate(onPlay: (c) => c.repeat(reverse: true)).moveY(begin: -4, end: 4, duration: 2700.ms, curve: Curves.easeInOut),
                       // Center Card
                       Positioned(
                         child: _buildBatchCard(1, scale: 1.0, isCenter: true),
-                      ),
+                      ).animate(onPlay: (c) => c.repeat(reverse: true)).moveY(begin: 6, end: -6, duration: 2000.ms, curve: Curves.easeInOut),
                     ],
                   ),
                 ),
                 
                 const SizedBox(height: 40),
                 // Gen-Z loading phrases
-                const Text(
-                  'outfit gods',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Text(
-                  'fetching images 😎',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 500),
+                  transitionBuilder: (Widget child, Animation<double> animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(animation),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Column(
+                    key: ValueKey<int>(_currentPhraseIndex),
+                    children: [
+                      Text(
+                        _loadingPhrases[_currentPhraseIndex][0],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        _loadingPhrases[_currentPhraseIndex][1],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 16),
