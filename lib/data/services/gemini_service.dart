@@ -11,9 +11,17 @@ final geminiServiceProvider = Provider((ref) => GeminiService());
 
 class RateLimitException implements Exception {
   final String message;
-  RateLimitException([this.message = 'API Rate Limit Exceeded. Please try again in 30 seconds.']);
+  RateLimitException([this.message = 'API Rate Limit Exceeded']);
   @override
   String toString() => message;
+}
+
+bool _isRateLimitError(dynamic e) {
+  final str = e.toString().toLowerCase();
+  return str.contains('429') || 
+         str.contains('quota') || 
+         str.contains('rate limit') || 
+         str.contains('too many requests');
 }
 
 class GeminiService {
@@ -119,7 +127,7 @@ class GeminiService {
       return null;
     } catch (e) {
       debugPrint('Gemini analysis error: $e');
-      if (e.toString().contains('429')) {
+      if (_isRateLimitError(e)) {
         throw RateLimitException();
       }
       return null;
@@ -207,7 +215,7 @@ class GeminiService {
       return null;
     } catch (e) {
       debugPrint('Gemini batch analysis error: $e');
-      if (e.toString().contains('429')) {
+      if (_isRateLimitError(e)) {
         throw RateLimitException();
       }
       return null;
@@ -316,7 +324,7 @@ INSTRUCTIONS:
         }
       } catch (e) {
         debugPrint('Gemini analysis error (attempt $attempt): $e');
-        if (e.toString().contains('429')) {
+        if (_isRateLimitError(e)) {
           throw RateLimitException();
         }
         if (attempt == maxRetries) {
@@ -517,6 +525,9 @@ Each object should be:
         );
       } catch (e) {
         debugPrint('Gemini outfit error (attempt \$attempt): \$e');
+        if (_isRateLimitError(e)) {
+          throw RateLimitException();
+        }
         if (attempt == maxRetries) {
           throw Exception('Failed to generate outfit. Please try again.');
         }
