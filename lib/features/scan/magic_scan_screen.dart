@@ -485,10 +485,15 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
     } catch (e) {
       if (!mounted) return;
       setState(() {
+        _isBatchMode = false;
         _currentState = ScanState.error;
-        _errorMessage = e is TimeoutException 
-            ? 'Analysis failed. Timeout.' 
-            : 'No clothing found. $e';
+        if (e is RateLimitException || e.toString().contains('RateLimitException')) {
+          _errorMessage = 'API Rate Limit Exceeded. Please try again in 30 seconds.';
+        } else {
+          _errorMessage = e is TimeoutException 
+              ? 'Analysis failed. Timeout.' 
+              : 'Error: $e';
+        }
       });
     }
   }

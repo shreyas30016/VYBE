@@ -9,6 +9,13 @@ import '../../core/utils/analytics.dart';
 
 final geminiServiceProvider = Provider((ref) => GeminiService());
 
+class RateLimitException implements Exception {
+  final String message;
+  RateLimitException([this.message = 'API Rate Limit Exceeded. Please try again in 30 seconds.']);
+  @override
+  String toString() => message;
+}
+
 class GeminiService {
   Future<Map<String, dynamic>?> analyzeClothingImage(XFile file) async {
     try {
@@ -112,6 +119,9 @@ class GeminiService {
       return null;
     } catch (e) {
       debugPrint('Gemini analysis error: $e');
+      if (e.toString().contains('429')) {
+        throw RateLimitException();
+      }
       return null;
     }
   }
@@ -197,6 +207,9 @@ class GeminiService {
       return null;
     } catch (e) {
       debugPrint('Gemini batch analysis error: $e');
+      if (e.toString().contains('429')) {
+        throw RateLimitException();
+      }
       return null;
     }
   }
@@ -302,7 +315,10 @@ INSTRUCTIONS:
           return parsedJson;
         }
       } catch (e) {
-        debugPrint('Gemini styling error (attempt $attempt): $e');
+        debugPrint('Gemini analysis error (attempt $attempt): $e');
+        if (e.toString().contains('429')) {
+          throw RateLimitException();
+        }
         if (attempt == maxRetries) {
           throw Exception('Failed to generate recommendation. Please try again.');
         }
