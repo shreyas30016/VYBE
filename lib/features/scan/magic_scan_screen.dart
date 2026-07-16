@@ -60,6 +60,11 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
   FlashModeEnum _flashMode = FlashModeEnum.off;
   String _errorMessage = '';
   
+  double _currentZoomLevel = 1.0;
+  double _minAvailableZoom = 1.0;
+  double _maxAvailableZoom = 1.0;
+  double _baseZoomLevel = 1.0;
+  
   Map<String, dynamic>? _scanResult;
   Uint8List? _imageBytes;
   Timer? _autoDetectTimer;
@@ -124,8 +129,10 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
     await _cameraController!.initialize();
     
     try {
-      final minZoom = await _cameraController!.getMinZoomLevel();
-      await _cameraController!.setZoomLevel(minZoom);
+      _minAvailableZoom = await _cameraController!.getMinZoomLevel();
+      _maxAvailableZoom = await _cameraController!.getMaxZoomLevel();
+      _currentZoomLevel = _minAvailableZoom;
+      await _cameraController!.setZoomLevel(_currentZoomLevel);
     } catch (e) {
       debugPrint('Zoom not supported: $e');
     }
@@ -137,6 +144,22 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
         _currentState = ScanState.cameraReady;
       });
       _startAutoDetectSimulation();
+    }
+  }
+
+  void _handleScaleStart(ScaleStartDetails details) {
+    _baseZoomLevel = _currentZoomLevel;
+  }
+
+  Future<void> _handleScaleUpdate(ScaleUpdateDetails details) async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
+    
+    _currentZoomLevel = (_baseZoomLevel * details.scale).clamp(_minAvailableZoom, _maxAvailableZoom);
+    
+    try {
+      await _cameraController!.setZoomLevel(_currentZoomLevel);
+    } catch (e) {
+      debugPrint('Error setting zoom: $e');
     }
   }
 
@@ -575,7 +598,11 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
             children: [
               // Camera Background
               SizedBox.expand(
-                child: _buildCameraBackground(),
+                child: GestureDetector(
+                  onScaleStart: _handleScaleStart,
+                  onScaleUpdate: _handleScaleUpdate,
+                  child: _buildCameraBackground(),
+                ),
               ),
             
             // Frame Overlay
@@ -732,18 +759,14 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
 
   Widget _buildCameraBackground() {
     if (_imageBytes != null) {
-      return Image.memory(_imageBytes!, fit: BoxFit.cover);
+      return Image.memory(_imageBytes!, fit: BoxFit.contain);
     }
     
     if (_currentState != ScanState.idle && _cameraController != null && _cameraController!.value.isInitialized) {
-      return SizedBox.expand(
-        child: FittedBox(
-          fit: BoxFit.cover,
-          child: SizedBox(
-            width: _cameraController!.value.previewSize?.height ?? 1,
-            height: _cameraController!.value.previewSize?.width ?? 1,
-            child: CameraPreview(_cameraController!),
-          ),
+      return Container(
+        color: Colors.black,
+        child: Center(
+          child: CameraPreview(_cameraController!),
         ),
       );
     }
