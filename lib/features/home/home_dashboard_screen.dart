@@ -38,10 +38,14 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
     
     final hour = DateTime.now().hour;
     String greeting = 'Good morning,';
-    if (hour >= 12 && hour < 17) {
+    if (hour >= 5 && hour < 12) {
+      greeting = 'Good morning,';
+    } else if (hour >= 12 && hour < 17) {
       greeting = 'Good afternoon,';
-    } else if (hour >= 17) {
+    } else if (hour >= 17 && hour < 22) {
       greeting = 'Good evening,';
+    } else {
+      greeting = 'Good night,';
     }
 
     final weatherAsync = ref.watch(currentWeatherProvider);
