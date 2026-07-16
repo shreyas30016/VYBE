@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -68,6 +69,11 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
   Map<String, dynamic>? _scanResult;
   Uint8List? _imageBytes;
   Timer? _autoDetectTimer;
+  
+  bool _isBatchMode = false;
+  List<XFile> _batchFiles = [];
+  List<Map<String, dynamic>> _batchResults = [];
+  int _batchProcessedCount = 0;
   
   // Smart Guide Quality Indicators
   bool _isLightingGood = false;
@@ -325,18 +331,90 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
       HapticFeedback.mediumImpact();
       
       setState(() {
-        _currentState = ScanState.capturing;
         _errorMessage = '';
         _scanResult = null;
         _revealedKeys.clear();
         _imageBytes = null;
+        _isBatchMode = false;
+        _batchFiles.clear();
+        _batchResults.clear();
+        _batchProcessedCount = 0;
+      });
+      
+      if (source == ImageSource.gallery) {
+        final List<XFile> images = await ImagePicker().pickMultiImage(limit: 10);
+        if (images.isEmpty) {
+          setState(() => _currentState = ScanState.cameraReady);
+          _startAutoDetectSimulation();
+          return;
+        }
+        
+        setState(() {
+          _isBatchMode = true;
+          _batchFiles = images;
+          _currentState = ScanState.uploading;
+        });
+        
+        Analytics.logEvent('Batch Scan Started', parameters: {'count': images.length});
+        await Future.delayed(const Duration(milliseconds: 800));
+        if (!mounted) return;
+        
+        setState(() => _currentState = ScanState.geminiAnalysis);
+        
+        final geminiService = ref.read(geminiServiceProvider);
+        final results = await geminiService.analyzeClothingImagesBatch(images).timeout(
+          const Duration(seconds: 45),
+          onTimeout: () => throw TimeoutException('AI batch analysis timed out'),
+        );
+        
+        if (!mounted) return;
+        
+        if (results == null || results.isEmpty) {
+          throw Exception('Batch analysis returned null');
+        }
+        
+        setState(() {
+          _currentState = ScanState.saving;
+          _batchResults = results;
+        });
+        
+        for (int i = 0; i < images.length; i++) {
+          if (i >= results.length) break;
+          final result = results[i];
+          final category = result['category'];
+          final confidence = result['confidence']?.toDouble() ?? 0.0;
+          if (category != null && confidence >= 0.85) {
+            await _saveToWardrobe(images[i], result);
+            setState(() {
+              _batchProcessedCount++;
+            });
+          }
+        }
+        
+        if (mounted) {
+          setState(() => _currentState = ScanState.completed);
+          HapticFeedback.lightImpact();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Added $_batchProcessedCount items to wardrobe!'),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(milliseconds: 1500),
+            ),
+          );
+          await Future.delayed(const Duration(milliseconds: 1500));
+          if (mounted) context.pop();
+        }
+        return;
+      }
+      
+      setState(() {
+        _currentState = ScanState.capturing;
       });
       
       XFile? imageFile;
-      if (source == ImageSource.camera && _cameraController != null && _cameraController!.value.isInitialized) {
+      if (_cameraController != null && _cameraController!.value.isInitialized) {
         imageFile = await _cameraController!.takePicture();
-      } else {
-        imageFile = await ImagePicker().pickImage(source: source);
       }
       
       if (imageFile == null) {
@@ -604,10 +682,17 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
                   child: _buildCameraBackground(),
                 ),
               ),
-
-            
-            // Guide Overlays
-            if (_currentMode == ScanMode.guide && _currentState == ScanState.cameraReady)
+              
+              if (_isBatchMode && _currentState.index >= ScanState.uploading.index)
+                Positioned.fill(
+                  child: _buildBatchLoadingScreen(),
+                ),
+              
+              if (!_isBatchMode)
+                Positioned.fill(child: _buildScanFrame()),
+              
+              // Guide Overlays
+            if (!_isBatchMode && _currentMode == ScanMode.guide && _currentState == ScanState.cameraReady)
               Positioned.fill(
                 child: Center(
                   child: Container(
@@ -726,7 +811,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
               ),
             
             // Status Card
-            if (_currentState.index >= ScanState.capturing.index || _currentState == ScanState.completed)
+            if (!_isBatchMode && (_currentState.index >= ScanState.capturing.index || _currentState == ScanState.completed))
               Positioned(
                 bottom: 120 + MediaQuery.of(context).padding.bottom,
                 left: 0,
@@ -735,18 +820,226 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
               ),
 
             // Bottom Controls
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 24 + MediaQuery.of(context).padding.bottom,
-              child: _buildBottomControls(),
-            ),
+            if (!_isBatchMode || _currentState == ScanState.idle || _currentState == ScanState.cameraReady)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 24 + MediaQuery.of(context).padding.bottom,
+                child: _buildBottomControls(),
+              ),
           ],
         ),
       ),
     ),
   );
 }
+
+  Widget _buildBatchLoadingScreen() {
+    return Stack(
+      children: [
+        // Blur Background
+        Positioned.fill(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.black.withValues(alpha: 0.5)),
+          ),
+        ),
+        // Cards and Loading text
+        Center(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Loading Text Top
+                const Text(
+                  'SCANNING FITS...',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2,
+                  ),
+                ).animate(onPlay: (controller) => controller.repeat()).shimmer(duration: 2.seconds),
+                const SizedBox(height: 8),
+                const Text(
+                  "Hang tight, your closet's getting an upgrade ✨",
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                const SizedBox(height: 40),
+                
+                // 3 Cards Stack
+                SizedBox(
+                  height: 320,
+                  width: MediaQuery.of(context).size.width,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Left Card
+                      Positioned(
+                        left: MediaQuery.of(context).size.width * 0.1,
+                        child: Transform.rotate(
+                          angle: -0.2, // ~ -11 degrees
+                          child: _buildBatchCard(0, scale: 0.85),
+                        ),
+                      ),
+                      // Right Card
+                      Positioned(
+                        right: MediaQuery.of(context).size.width * 0.1,
+                        child: Transform.rotate(
+                          angle: 0.2, // ~ 11 degrees
+                          child: _buildBatchCard(2, scale: 0.85),
+                        ),
+                      ),
+                      // Center Card
+                      Positioned(
+                        child: _buildBatchCard(1, scale: 1.0, isCenter: true),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 40),
+                // Gen-Z loading phrases
+                const Text(
+                  'outfit gods',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Text(
+                  'fetching images 😎',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'good fits loading... stay stylish 💚',
+                  style: TextStyle(color: Colors.white60, fontSize: 14),
+                ),
+                const SizedBox(height: 24),
+                
+                // Progress Bar
+                if (_currentState == ScanState.saving || _currentState == ScanState.completed)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    child: Column(
+                      children: [
+                        LinearProgressIndicator(
+                          value: _batchFiles.isEmpty ? 0 : _batchProcessedCount / _batchFiles.length,
+                          backgroundColor: Colors.white12,
+                          color: AppColors.primary,
+                          minHeight: 6,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${(_batchProcessedCount / math.max(1, _batchFiles.length) * 100).toInt()}%',
+                          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                        )
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBatchCard(int index, {double scale = 1.0, bool isCenter = false}) {
+    String? imagePath;
+    if (_batchFiles.isNotEmpty) {
+      imagePath = _batchFiles[index % _batchFiles.length].path;
+    }
+    
+    final bool isApproved = _currentState == ScanState.saving || _currentState == ScanState.completed;
+
+    return Transform.scale(
+      scale: scale,
+      child: Container(
+        width: 180,
+        height: 280,
+        decoration: BoxDecoration(
+          color: const Color(0xFF111111),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isCenter ? AppColors.primary : Colors.white24,
+            width: isCenter ? 2 : 1,
+          ),
+          boxShadow: [
+            if (isCenter) BoxShadow(color: AppColors.primary.withValues(alpha: 0.2), blurRadius: 20, spreadRadius: 2)
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (imagePath != null)
+                _buildItemThumbnail(imagePath),
+              if (imagePath == null)
+                const Center(child: Icon(LucideIcons.image, color: Colors.white24, size: 40)),
+                
+              // Overlay gradient
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black.withValues(alpha: 0.8)],
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Approved Badge
+              if (isApproved)
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                        child: const Icon(LucideIcons.check, color: Colors.black, size: 12),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text('APPROVED', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+                
+              // Scanned & Approved Bottom Text
+              if (isApproved)
+                const Positioned(
+                  bottom: 16,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(LucideIcons.checkCircle2, color: AppColors.primary, size: 14),
+                        SizedBox(width: 4),
+                        Text('SCANNED & APPROVED', style: TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildCameraBackground() {
     if (_imageBytes != null) {
