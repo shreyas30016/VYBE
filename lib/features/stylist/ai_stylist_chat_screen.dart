@@ -300,7 +300,14 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
       final weather = ref.read(currentWeatherProvider).valueOrNull;
       final weatherStr = weather != null ? "${weather.temperature}°C, ${weather.condition}" : null;
       
-      final wardrobeJson = wardrobe.map((item) => item.toJson()).toList();
+      final wardrobeJson = wardrobe.map((item) {
+        final json = item.toJson();
+        json.remove('imageUrl');
+        json.remove('userId');
+        json.remove('dateAdded');
+        json.remove('lastWorn');
+        return json;
+      }).toList();
 
       final suggestion = await geminiService.generateOutfitRecommendation(
         text,

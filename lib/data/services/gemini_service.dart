@@ -294,8 +294,8 @@ INSTRUCTIONS:
             }
           }
           
-          if (cleanOutfits.isEmpty) {
-             throw Exception('Gemini hallucinated all item IDs or provided none.');
+          if (rawOutfits.isNotEmpty && cleanOutfits.isEmpty) {
+             throw Exception('Gemini hallucinated all item IDs.');
           }
           
           parsedJson['outfits'] = cleanOutfits;
