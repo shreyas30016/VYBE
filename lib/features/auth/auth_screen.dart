@@ -224,6 +224,58 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
     }
   }
 
+  Future<void> _handleForgotPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your email address first to reset your password.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: kIsWeb ? Uri.base.origin : 'io.supabase.closetos://login-callback',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password reset link sent to your email!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on AuthException catch (error) {
+      if (mounted) {
+        String message = error.message;
+        if (error.statusCode == '429' || message.toLowerCase().contains('too many requests')) {
+          _startRateLimitTimer();
+          message = 'For security purposes, you can only request this after 45 seconds.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        debugPrint('Forgot Password Error: $error');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('An unexpected error occurred'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -465,7 +517,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
                               child: Padding(
                                 padding: const EdgeInsets.only(top: 12.0, bottom: 16.0),
                                 child: InkWell(
-                                  onTap: () {},
+                                  onTap: _isLoading ? null : _handleForgotPassword,
                                   child: Text(
                                     'Forgot password?',
                                     style: AppTypography.bodySmall.copyWith(
