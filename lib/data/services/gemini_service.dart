@@ -18,18 +18,24 @@ class RateLimitException implements Exception {
 
 String _currentGeminiModel = 'gemini-2.0-flash-lite';
 
-bool _isRateLimitError(dynamic e) {
+bool _shouldFallback(dynamic e) {
   final str = e.toString().toLowerCase();
+  
+  // Check for rate limits (429) or not found errors (404)
   final isRateLimit = str.contains('429') || 
          str.contains('quota') || 
          str.contains('rate limit') || 
          str.contains('too many requests');
          
-  if (isRateLimit && _currentGeminiModel == 'gemini-2.0-flash-lite') {
-    debugPrint('Rate limit hit on gemini-2.0-flash-lite. Downgrading to gemini-2.5-flash for future requests.');
+  final isNotFound = str.contains('404') || 
+         str.contains('not found');
+         
+  if ((isRateLimit || isNotFound) && _currentGeminiModel == 'gemini-2.0-flash-lite') {
+    debugPrint('⚠️ [Gemini AI] Error on gemini-2.0-flash-lite (RateLimit: $isRateLimit, NotFound: $isNotFound). Downgrading to gemini-2.5-flash for future requests.');
     _currentGeminiModel = 'gemini-2.5-flash';
+    return true;
   }
-  return isRateLimit;
+  return isRateLimit || isNotFound;
 }
 
 class GeminiService {
@@ -135,7 +141,7 @@ class GeminiService {
       return null;
     } catch (e) {
       debugPrint('Gemini analysis error: $e');
-      if (_isRateLimitError(e)) {
+      if (_shouldFallback(e)) {
         throw RateLimitException();
       }
       return null;
@@ -223,7 +229,7 @@ class GeminiService {
       return null;
     } catch (e) {
       debugPrint('Gemini batch analysis error: $e');
-      if (_isRateLimitError(e)) {
+      if (_shouldFallback(e)) {
         throw RateLimitException();
       }
       return null;
@@ -332,7 +338,7 @@ INSTRUCTIONS:
         }
       } catch (e) {
         debugPrint('Gemini analysis error (attempt $attempt): $e');
-        if (_isRateLimitError(e)) {
+        if (_shouldFallback(e)) {
           throw RateLimitException();
         }
         if (attempt == maxRetries) {
@@ -533,7 +539,7 @@ Each object should be:
         );
       } catch (e) {
         debugPrint('Gemini outfit error (attempt \$attempt): \$e');
-        if (_isRateLimitError(e)) {
+        if (_shouldFallback(e)) {
           throw RateLimitException();
         }
         if (attempt == maxRetries) {
