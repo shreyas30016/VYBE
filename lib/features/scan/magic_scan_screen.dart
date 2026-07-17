@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -865,10 +865,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
       children: [
         // Blur Background
         Positioned.fill(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(color: Colors.black.withValues(alpha: 0.5)),
-          ),
+          child: Container(color: Colors.black.withValues(alpha: 0.8)),
         ),
         // Cards and Loading text
         Center(

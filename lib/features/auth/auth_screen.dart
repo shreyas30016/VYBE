@@ -1,4 +1,4 @@
-import 'dart:ui';
+
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -305,10 +305,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
               );
             }
           ),
-          BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
-            child: Container(color: Colors.transparent),
-          ),
+          // Removed BackdropFilter to prevent WebGL context loss
           
           SafeArea(
             child: Center(

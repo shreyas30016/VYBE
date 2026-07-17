@@ -213,7 +213,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                     child: Container(
                       height: 64,
                       decoration: BoxDecoration(
@@ -312,7 +312,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           routes: [
             GoRoute(
               path: '/home',
-              builder: (context, state) => const HomeDashboardScreen(),
+              builder: (context, state) {
+                debugPrint('Entering Home');
+                return const HomeDashboardScreen();
+              },
             ),
           ],
         ),
@@ -320,7 +323,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           routes: [
             GoRoute(
               path: '/stylist',
-              builder: (context, state) => const AiStylistChatScreen(),
+              builder: (context, state) {
+                debugPrint('Entering Stylist');
+                return const AiStylistChatScreen();
+              },
             ),
           ],
         ),
@@ -328,7 +334,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           routes: [
             GoRoute(
               path: '/closet',
-              builder: (context, state) => const ClosetHubScreen(),
+              builder: (context, state) {
+                debugPrint('Entering Wardrobe');
+                return const ClosetHubScreen();
+              },
             ),
           ],
         ),
@@ -336,7 +345,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           routes: [
             GoRoute(
               path: '/profile',
-              builder: (context, state) => const ProfileScreen(),
+              builder: (context, state) {
+                debugPrint('Entering Profile');
+                return const ProfileScreen();
+              },
             ),
           ],
         ),
@@ -345,9 +357,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     GoRoute(
       path: '/magic-scan',
       parentNavigatorKey: rootNavigatorKey,
-      pageBuilder: (context, state) => CustomTransitionPage(
-        key: state.pageKey,
-        child: const MagicScanScreen(),
+      pageBuilder: (context, state) {
+        debugPrint('Entering Scan');
+        return CustomTransitionPage(
+          key: state.pageKey,
+          child: const MagicScanScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,
@@ -357,8 +371,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           );
         },
-      ),
-    ),
+      );
+    },
+  ),
     GoRoute(
       path: '/discover',
       parentNavigatorKey: rootNavigatorKey,

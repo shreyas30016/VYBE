@@ -1,4 +1,4 @@
-import 'dart:ui';
+
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
@@ -57,10 +57,7 @@ class _AmbientBackgroundState extends State<AmbientBackground> with SingleTicker
             );
           }
         ),
-        BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
-          child: Container(color: Colors.transparent),
-        ),
+        // Removed BackdropFilter to prevent WebGL context loss
         widget.child,
       ],
     );
