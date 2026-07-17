@@ -16,7 +16,7 @@ class RateLimitException implements Exception {
   String toString() => message;
 }
 
-String _currentGeminiModel = 'gemini-2-flash';
+String _currentGeminiModel = 'gemini-1.5-flash';
 
 bool _isRateLimitError(dynamic e) {
   final str = e.toString().toLowerCase();
@@ -25,9 +25,9 @@ bool _isRateLimitError(dynamic e) {
          str.contains('rate limit') || 
          str.contains('too many requests');
          
-  if (isRateLimit && _currentGeminiModel == 'gemini-2-flash') {
-    debugPrint('Rate limit hit on gemini-2-flash. Downgrading to gemini-2.5-flash for future requests.');
-    _currentGeminiModel = 'gemini-2.5-flash';
+  if (isRateLimit && _currentGeminiModel == 'gemini-1.5-flash') {
+    debugPrint('Rate limit hit on gemini-1.5-flash. Downgrading to gemini-1.5-flash-8b for future requests.');
+    _currentGeminiModel = 'gemini-1.5-flash-8b';
   }
   return isRateLimit;
 }
