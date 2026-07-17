@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +17,54 @@ class RateLimitException implements Exception {
   String toString() => message;
 }
 
+class _OpenRouterProvider {
+  Future<String> generateText(String systemPrompt, String userPrompt) async {
+    final apiKey = dotenv.env['OPENROUTER_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception('OPENROUTER_API_KEY is missing');
+    }
+    
+    final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
+    
+    for (int attempt = 0; attempt < 2; attempt++) {
+      try {
+        final response = await http.post(
+          url,
+          headers: {
+            'Authorization': 'Bearer $apiKey',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            "model": "meta-llama/llama-3.3-70b-instruct:free",
+            "messages": [
+              {"role": "system", "content": systemPrompt},
+              {"role": "user", "content": userPrompt}
+            ]
+          })
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final json = jsonDecode(response.body);
+          return json['choices'][0]['message']['content'] as String;
+        } else if (response.statusCode == 429 || response.statusCode >= 500) {
+          if (attempt == 0) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            continue;
+          }
+        }
+        throw Exception('OpenRouter error: ${response.statusCode} - ${response.body}');
+      } catch (e) {
+        if (attempt == 0) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          continue;
+        }
+        throw Exception('OpenRouter request failed: $e');
+      }
+    }
+    throw Exception('OpenRouter exhausted retries.');
+  }
+}
+
   bool _isRetryableError(dynamic e) {
     final str = e.toString().toLowerCase();
     return str.contains('429') || 
@@ -29,7 +78,12 @@ class RateLimitException implements Exception {
   }
 
 class GeminiService {
-  Future<T> _withModelRouter<T>(Future<T> Function(GenerativeModel model, int attempt) action) async {
+  final ValueNotifier<String> activeProviderNotifier = ValueNotifier('Gemini (2.5 Flash)');
+
+  Future<T> _withModelRouter<T>(
+    Future<T> Function(GenerativeModel model, int attempt) action, {
+    Future<T> Function()? openRouterFallback,
+  }) async {
     const models = [
       'gemini-2.0-flash-lite',
       'gemini-2.5-flash',
@@ -56,6 +110,11 @@ class GeminiService {
           final result = await action(model, attempt).timeout(const Duration(seconds: 15));
           stopwatch.stop();
           debugPrint('✅ [Gemini AI] Success with $modelName (Attempt ${attempt + 1}). Latency: ${stopwatch.elapsedMilliseconds}ms');
+          
+          if (activeProviderNotifier.value != 'Gemini ($modelName)') {
+            Future.microtask(() => activeProviderNotifier.value = 'Gemini ($modelName)');
+          }
+
           return result;
         } catch (e) {
           stopwatch.stop();
@@ -73,12 +132,32 @@ class GeminiService {
             break;
           }
 
-          throw Exception('Stylist is taking a coffee break ☕\\nTry again in a moment.');
+          throw Exception('Stylist is taking a coffee break ☕\nTry again in a moment.');
         }
       }
     }
 
-    throw Exception('Stylist is taking a coffee break ☕\\nTry again in a moment.');
+    if (openRouterFallback != null) {
+      debugPrint('🔄 [Gemini AI] Exhausted all Gemini models. Falling back to OpenRouter (Llama 3.3 Free)...');
+      final stopwatch = Stopwatch()..start();
+      try {
+        final result = await openRouterFallback();
+        stopwatch.stop();
+        debugPrint('✅ [OpenRouter] Success. Latency: ${stopwatch.elapsedMilliseconds}ms');
+        
+        if (activeProviderNotifier.value != 'OpenRouter (Llama 3.3 Free)') {
+          Future.microtask(() => activeProviderNotifier.value = 'OpenRouter (Llama 3.3 Free)');
+        }
+
+        return result;
+      } catch (e) {
+        stopwatch.stop();
+        debugPrint('⚠️ [OpenRouter] Error. Latency: ${stopwatch.elapsedMilliseconds}ms. Reason: $e');
+        throw Exception('Stylist is taking a coffee break ☕\nTry again in a moment.');
+      }
+    }
+
+    throw Exception('Stylist is taking a coffee break ☕\nTry again in a moment.');
   }
   Future<Map<String, dynamic>?> analyzeClothingImage(XFile file) async {
     try {
@@ -257,8 +336,7 @@ class GeminiService {
     String? weatherContext,
   ) async {
     try {
-      return await _withModelRouter((model, attempt) async {
-        final systemPrompt = '''
+      final systemPrompt = '''
 You are an expert AI fashion stylist. The user is asking for outfit recommendations based on their real wardrobe.
 Here is the user's wardrobe inventory as a JSON list of items:
 ${jsonEncode(wardrobeItems)}
@@ -286,59 +364,68 @@ INSTRUCTIONS:
 }
 ''';
 
-        final chat = model.startChat(history: [
-          Content.text(systemPrompt),
-          Content.model([TextPart('Understood. I will strictly follow the JSON structure and only use valid IDs.')])
-        ]);
-
-        final stopwatch = Stopwatch()..start();
-        final finalPrompt = attempt > 0 
-            ? "PREVIOUS ERROR: You hallucinated item IDs. Return ONLY valid IDs from the provided JSON list.\\n\\nUser prompt: \$userPrompt" 
-            : userPrompt;
-            
-        final response = await chat.sendMessage(Content.text(finalPrompt));
-        stopwatch.stop();
-        Analytics.logApiDuration('Gemini (generateOutfitRecommendation_attempt_$attempt)', stopwatch.elapsed);
-
-        if (response.text != null) {
-          var jsonText = response.text!.trim();
-          final jsonStart = jsonText.indexOf('{');
-          final jsonEnd = jsonText.lastIndexOf('}');
-          if (jsonStart != -1 && jsonEnd != -1) {
-            jsonText = jsonText.substring(jsonStart, jsonEnd + 1);
-          } else {
-            throw Exception('No JSON found in response');
-          }
-          
-          final parsedJson = jsonDecode(jsonText) as Map<String, dynamic>;
-          
-          // Validate against hallucinated IDs
-          final validIds = wardrobeItems.map((item) => item['id']).toSet();
-          
-          final List<dynamic> rawOutfits = parsedJson['outfits'] ?? [];
-          final List<Map<String, dynamic>> cleanOutfits = [];
-          
-          for (var outfit in rawOutfits) {
-            final List<dynamic> recommendedIds = outfit['itemIds'] ?? [];
-            final cleanIds = recommendedIds.where((id) => validIds.contains(id)).toList();
-            
-            if (cleanIds.isNotEmpty) {
-              cleanOutfits.add({
-                'title': outfit['title'] ?? 'Outfit Recommendation',
-                'itemIds': cleanIds,
-              });
-            }
-          }
-          
-          if (rawOutfits.isNotEmpty && cleanOutfits.isEmpty) {
-             throw Exception('Gemini hallucinated all item IDs.');
-          }
-          
-          parsedJson['outfits'] = cleanOutfits;
-          return parsedJson;
+      Map<String, dynamic> parseResponse(String text) {
+        var jsonText = text.trim();
+        final jsonStart = jsonText.indexOf('{');
+        final jsonEnd = jsonText.lastIndexOf('}');
+        if (jsonStart != -1 && jsonEnd != -1) {
+          jsonText = jsonText.substring(jsonStart, jsonEnd + 1);
+        } else {
+          throw Exception('No JSON found in response');
         }
-        return null;
-      });
+        
+        final parsedJson = jsonDecode(jsonText) as Map<String, dynamic>;
+        final validIds = wardrobeItems.map((item) => item['id']).toSet();
+        
+        final List<dynamic> rawOutfits = parsedJson['outfits'] ?? [];
+        final List<Map<String, dynamic>> cleanOutfits = [];
+        
+        for (var outfit in rawOutfits) {
+          final List<dynamic> recommendedIds = outfit['itemIds'] ?? [];
+          final cleanIds = recommendedIds.where((id) => validIds.contains(id)).toList();
+          
+          if (cleanIds.isNotEmpty) {
+            cleanOutfits.add({
+              'title': outfit['title'] ?? 'Outfit Recommendation',
+              'itemIds': cleanIds,
+            });
+          }
+        }
+        
+        if (rawOutfits.isNotEmpty && cleanOutfits.isEmpty) {
+           throw Exception('AI hallucinated all item IDs.');
+        }
+        
+        parsedJson['outfits'] = cleanOutfits;
+        return parsedJson;
+      }
+
+      return await _withModelRouter(
+        (model, attempt) async {
+          final chat = model.startChat(history: [
+            Content.text(systemPrompt),
+            Content.model([TextPart('Understood. I will strictly follow the JSON structure and only use valid IDs.')])
+          ]);
+
+          final stopwatch = Stopwatch()..start();
+          final finalPrompt = attempt > 0 
+              ? "PREVIOUS ERROR: You hallucinated item IDs. Return ONLY valid IDs from the provided JSON list.\n\nUser prompt: $userPrompt" 
+              : userPrompt;
+              
+          final response = await chat.sendMessage(Content.text(finalPrompt));
+          stopwatch.stop();
+          Analytics.logApiDuration('Gemini (generateOutfitRecommendation_attempt_$attempt)', stopwatch.elapsed);
+
+          if (response.text != null) {
+            return parseResponse(response.text!);
+          }
+          throw Exception('No text returned');
+        },
+        openRouterFallback: () async {
+          final rawText = await _OpenRouterProvider().generateText(systemPrompt, userPrompt);
+          return parseResponse(rawText);
+        }
+      );
     } catch (e) {
       debugPrint('Gemini analysis error: $e');
       return null;
@@ -349,8 +436,6 @@ INSTRUCTIONS:
     List<Map<String, dynamic>> wardrobeItems,
   ) async {
     try {
-      return await _withModelRouter((model, attempt) async {
-
       const systemPrompt = '''
 You are an expert AI fashion stylist. The user wants to know what key item is missing or underrepresented in their wardrobe that would unlock the most new outfit combinations.
 Here is the user's real wardrobe inventory as a JSON list of items:
@@ -369,35 +454,42 @@ INSTRUCTIONS:
 }
 ''';
 
-      final chat = model.startChat(history: [
-        Content.text(systemPrompt),
-        Content.model([TextPart('Understood. I will strictly follow the JSON structure based on the provided wardrobe data.')])
-      ]);
-
-      final response = await chat.sendMessage(Content.text('Analyze my wardrobe and identify the biggest gap.'));
-
-      if (response.text != null) {
-        var jsonText = response.text!.trim();
-        if (jsonText.startsWith('```json')) {
-          jsonText = jsonText.substring(7);
-        } else if (jsonText.startsWith('```')) {
-          jsonText = jsonText.substring(3);
+      Map<String, dynamic> parseResponse(String text) {
+        var jsonText = text.trim();
+        final jsonStart = jsonText.indexOf('{');
+        final jsonEnd = jsonText.lastIndexOf('}');
+        if (jsonStart != -1 && jsonEnd != -1) {
+          jsonText = jsonText.substring(jsonStart, jsonEnd + 1);
+        } else {
+          throw Exception('No JSON found in response');
         }
-        if (jsonText.endsWith('```')) {
-          jsonText = jsonText.substring(0, jsonText.length - 3);
-        }
-        jsonText = jsonText.trim();
         
         final parsedJson = jsonDecode(jsonText) as Map<String, dynamic>;
-        
-        debugPrint('--- GEMINI GAP ANALYSIS RESPONSE ---');
+        debugPrint('--- AI GAP ANALYSIS RESPONSE ---');
         debugPrint(parsedJson.toString());
         debugPrint('------------------------------------');
-        
         return parsedJson;
       }
-      return null;
-      });
+
+      return await _withModelRouter(
+        (model, attempt) async {
+          final chat = model.startChat(history: [
+            Content.text(systemPrompt),
+            Content.model([TextPart('Understood. I will strictly follow the JSON structure based on the provided wardrobe data.')])
+          ]);
+
+          final response = await chat.sendMessage(Content.text('Analyze my wardrobe and identify the biggest gap.'));
+
+          if (response.text != null) {
+            return parseResponse(response.text!);
+          }
+          throw Exception('No text returned');
+        },
+        openRouterFallback: () async {
+          final rawText = await _OpenRouterProvider().generateText(systemPrompt, 'Analyze my wardrobe and identify the biggest gap.');
+          return parseResponse(rawText);
+        }
+      );
     } catch (e) {
       debugPrint('Gemini gap analysis error: $e');
       throw Exception('Failed to generate gap analysis. Please try again.');
@@ -406,8 +498,6 @@ INSTRUCTIONS:
 
   Future<List<Map<String, dynamic>>?> generatePackingList(String destination, String duration) async {
     try {
-      return await _withModelRouter((model, attempt) async {
-
       const systemPrompt = '''
 You are an expert travel planner. Create a minimal, practical packing checklist based on the user's destination and duration.
 Return ONLY a valid JSON ARRAY of objects (no markdown, no backticks).
@@ -419,30 +509,39 @@ Each object should be:
 }
 ''';
 
-      final chat = model.startChat(history: [
-        Content.text(systemPrompt),
-        Content.model([TextPart('Understood. I will strictly return the JSON array of packing items.')])
-      ]);
-
-      final response = await chat.sendMessage(Content.text('Destination: $destination, Duration: $duration'));
-
-      if (response.text != null) {
-        var jsonText = response.text!.trim();
-        if (jsonText.startsWith('```json')) {
-          jsonText = jsonText.substring(7);
-        } else if (jsonText.startsWith('```')) {
-          jsonText = jsonText.substring(3);
+      List<Map<String, dynamic>> parseResponse(String text) {
+        var jsonText = text.trim();
+        final jsonStart = jsonText.indexOf('[');
+        final jsonEnd = jsonText.lastIndexOf(']');
+        if (jsonStart != -1 && jsonEnd != -1) {
+          jsonText = jsonText.substring(jsonStart, jsonEnd + 1);
+        } else {
+          throw Exception('No JSON array found in response');
         }
-        if (jsonText.endsWith('```')) {
-          jsonText = jsonText.substring(0, jsonText.length - 3);
-        }
-        jsonText = jsonText.trim();
         
         final parsedJson = jsonDecode(jsonText) as List<dynamic>;
         return parsedJson.cast<Map<String, dynamic>>();
       }
-      return null;
-      });
+
+      return await _withModelRouter(
+        (model, attempt) async {
+          final chat = model.startChat(history: [
+            Content.text(systemPrompt),
+            Content.model([TextPart('Understood. I will strictly return the JSON array of packing items.')])
+          ]);
+
+          final response = await chat.sendMessage(Content.text('Destination: $destination, Duration: $duration'));
+
+          if (response.text != null) {
+            return parseResponse(response.text!);
+          }
+          throw Exception('No text returned');
+        },
+        openRouterFallback: () async {
+          final rawText = await _OpenRouterProvider().generateText(systemPrompt, 'Destination: $destination, Duration: $duration');
+          return parseResponse(rawText);
+        }
+      );
     } catch (e) {
       debugPrint('Gemini packing list error: $e');
       throw Exception('Failed to generate packing list.');
@@ -457,26 +556,50 @@ Each object should be:
       throw Exception('Wardrobe is empty');
     }
 
-    return await _withModelRouter((model, attempt) async {
-        
-        final weatherStr = weatherInfo != null ? "Weather is ${weatherInfo.temperature}C and ${weatherInfo.condition}." : "Weather unknown.";
-        final validIds = wardrobe.map((item) => item.id).toSet();
-        final wardrobeStr = wardrobe.map((item) => "{id: ${item.id}, category: ${item.category}, color: ${item.color}}").join(", ");
+    final weatherStr = weatherInfo != null ? "Weather is ${weatherInfo.temperature}C and ${weatherInfo.condition}." : "Weather unknown.";
+    final validIds = wardrobe.map((item) => item.id).toSet();
+    final wardrobeStr = wardrobe.map((item) => "{id: ${item.id}, category: ${item.category}, color: ${item.color}}").join(", ");
 
-        final basePrompt = '''
-        You are an AI Fashion Stylist.
-        $weatherStr
-        Occasion: ${occasion ?? 'casual'}
-        Wardrobe: $wardrobeStr
-        
-        Choose exactly 2-4 items from the wardrobe to make a perfect outfit.
-        Return ONLY a JSON object with this exact structure, no markdown, no other text:
-        {
-          "itemIds": ["id1", "id2"],
-          "reasoning": "A 1-sentence explanation."
-        }
-        ''';
-        
+    final basePrompt = '''
+    You are an AI Fashion Stylist.
+    $weatherStr
+    Occasion: ${occasion ?? 'casual'}
+    Wardrobe: $wardrobeStr
+    
+    Choose exactly 2-4 items from the wardrobe to make a perfect outfit.
+    Return ONLY a JSON object with this exact structure, no markdown, no other text:
+    {
+      "itemIds": ["id1", "id2"],
+      "reasoning": "A 1-sentence explanation."
+    }
+    ''';
+
+    OutfitSuggestion parseResponse(String text) {
+      var jsonText = text.trim();
+      final jsonStart = jsonText.indexOf('{');
+      final jsonEnd = jsonText.lastIndexOf('}');
+      if (jsonStart != -1 && jsonEnd != -1) {
+        jsonText = jsonText.substring(jsonStart, jsonEnd + 1);
+      } else {
+        throw Exception('No JSON found in response');
+      }
+
+      final parsed = jsonDecode(jsonText);
+      final List<dynamic> rawIds = parsed['itemIds'] ?? [];
+      final cleanIds = rawIds.where((id) => validIds.contains(id)).map((id) => id.toString()).toList();
+      
+      if (cleanIds.isEmpty) {
+        throw Exception('AI hallucinated all item IDs.');
+      }
+
+      return OutfitSuggestion(
+        itemIds: cleanIds,
+        reasoning: parsed['reasoning'] ?? 'A perfect match.',
+      );
+    }
+
+    return await _withModelRouter(
+      (model, attempt) async {
         final prompt = attempt > 0
             ? "$basePrompt\nCRITICAL: In your last attempt you hallucinated item IDs. Return ONLY valid IDs from the provided Wardrobe list."
             : basePrompt;
@@ -485,29 +608,17 @@ Each object should be:
         final response = await model.generateContent([Content.text(prompt)]);
         stopwatch.stop();
         Analytics.logApiDuration('Gemini (generateOutfitSuggestion_attempt_$attempt)', stopwatch.elapsed);
-        var jsonText = response.text ?? '';
         
-        final jsonStart = jsonText.indexOf('{');
-        final jsonEnd = jsonText.lastIndexOf('}');
-        if (jsonStart != -1 && jsonEnd != -1) {
-          jsonText = jsonText.substring(jsonStart, jsonEnd + 1);
-        } else {
-          throw Exception('No JSON found in response');
+        if (response.text != null) {
+          return parseResponse(response.text!);
         }
-
-        final parsed = jsonDecode(jsonText);
-        final List<dynamic> rawIds = parsed['itemIds'] ?? [];
-        final cleanIds = rawIds.where((id) => validIds.contains(id)).map((id) => id.toString()).toList();
-        
-        if (cleanIds.isEmpty) {
-          throw Exception('Gemini hallucinated all item IDs.');
-        }
-
-        return OutfitSuggestion(
-          itemIds: cleanIds,
-          reasoning: parsed['reasoning'] ?? 'Here is an outfit.',
-        );
-      });
+        throw Exception('No text returned');
+      },
+      openRouterFallback: () async {
+        final rawText = await _OpenRouterProvider().generateText('', basePrompt);
+        return parseResponse(rawText);
+      }
+    );
   }
 }
 

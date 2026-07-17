@@ -5,6 +5,7 @@ echo "OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY" >> .env
 echo "SUPABASE_URL=$SUPABASE_URL" >> .env
 echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> .env
 echo "GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID" >> .env
+echo "OPENROUTER_API_KEY=$OPENROUTER_API_KEY" >> .env
 
 if [ ! -d "flutter" ]; then
   git clone https://github.com/flutter/flutter.git -b stable

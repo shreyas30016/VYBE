@@ -15,6 +15,7 @@ import '../../data/models/clothing_item.dart';
 import '../../data/models/outfit.dart';
 import '../../core/components/glass_container.dart';
 import '../../core/components/ambient_background.dart';
+import '../../data/services/gemini_service.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -260,7 +261,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               // Tiny Status Indicators
               Text('SYSTEM STATUS', style: AppTypography.captionBold.copyWith(color: AppColors.textSecondary)),
               const SizedBox(height: 12),
-              _buildStatusRow('Gemini AI', true),
+              ValueListenableBuilder<String>(
+                valueListenable: ref.read(geminiServiceProvider).activeProviderNotifier,
+                builder: (context, activeProvider, child) {
+                  return _buildStatusRow('AI: $activeProvider', true);
+                },
+              ),
               _buildStatusRow('Supabase', true),
               _buildStatusRow('Hive Local', true),
               _buildStatusRow('Weather API', true),
