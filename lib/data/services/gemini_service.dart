@@ -17,14 +17,14 @@ class RateLimitException implements Exception {
   String toString() => message;
 }
 
-class _OpenRouterProvider {
+class _NvidiaNimProvider {
   Future<String> generateText(String systemPrompt, String userPrompt) async {
-    final apiKey = dotenv.env['OPENROUTER_API_KEY'];
+    final apiKey = dotenv.env['NVIDIA_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('OPENROUTER_API_KEY is missing');
+      throw Exception('NVIDIA_API_KEY is missing');
     }
     
-    final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
+    final url = Uri.parse('https://integrate.api.nvidia.com/v1/chat/completions');
     
     for (int attempt = 0; attempt < 2; attempt++) {
       try {
@@ -35,7 +35,7 @@ class _OpenRouterProvider {
             'Content-Type': 'application/json',
           },
           body: jsonEncode({
-            "model": "meta-llama/llama-3.3-70b-instruct:free",
+            "model": "deepseek-ai/deepseek-v4-flash",
             "messages": [
               {"role": "system", "content": systemPrompt},
               {"role": "user", "content": userPrompt}
@@ -52,16 +52,16 @@ class _OpenRouterProvider {
             continue;
           }
         }
-        throw Exception('OpenRouter error: ${response.statusCode} - ${response.body}');
+        throw Exception('NVIDIA NIM error: ${response.statusCode} - ${response.body}');
       } catch (e) {
         if (attempt == 0) {
           await Future.delayed(const Duration(milliseconds: 500));
           continue;
         }
-        throw Exception('OpenRouter request failed: $e');
+        throw Exception('NVIDIA NIM request failed: $e');
       }
     }
-    throw Exception('OpenRouter exhausted retries.');
+    throw Exception('NVIDIA NIM exhausted retries.');
   }
 }
 
@@ -138,21 +138,21 @@ class GeminiService {
     }
 
     if (openRouterFallback != null) {
-      debugPrint('🔄 [Gemini AI] Exhausted all Gemini models. Falling back to OpenRouter (Llama 3.3 Free)...');
+      debugPrint('🔄 [Gemini AI] Exhausted all Gemini models. Falling back to NVIDIA NIM (DeepSeek V4)...');
       final stopwatch = Stopwatch()..start();
       try {
         final result = await openRouterFallback();
         stopwatch.stop();
-        debugPrint('✅ [OpenRouter] Success. Latency: ${stopwatch.elapsedMilliseconds}ms');
+        debugPrint('✅ [NVIDIA] Success. Latency: ${stopwatch.elapsedMilliseconds}ms');
         
-        if (activeProviderNotifier.value != 'OpenRouter (Llama 3.3 Free)') {
-          Future.microtask(() => activeProviderNotifier.value = 'OpenRouter (Llama 3.3 Free)');
+        if (activeProviderNotifier.value != 'NVIDIA (DeepSeek V4)') {
+          Future.microtask(() => activeProviderNotifier.value = 'NVIDIA (DeepSeek V4)');
         }
 
         return result;
       } catch (e) {
         stopwatch.stop();
-        debugPrint('⚠️ [OpenRouter] Error. Latency: ${stopwatch.elapsedMilliseconds}ms. Reason: $e');
+        debugPrint('⚠️ [NVIDIA] Error. Latency: ${stopwatch.elapsedMilliseconds}ms. Reason: $e');
         throw Exception('Stylist is taking a coffee break ☕\nTry again in a moment.');
       }
     }
@@ -422,7 +422,7 @@ INSTRUCTIONS:
           throw Exception('No text returned');
         },
         openRouterFallback: () async {
-          final rawText = await _OpenRouterProvider().generateText(systemPrompt, userPrompt);
+          final rawText = await _NvidiaNimProvider().generateText(systemPrompt, userPrompt);
           return parseResponse(rawText);
         }
       );
@@ -486,7 +486,7 @@ INSTRUCTIONS:
           throw Exception('No text returned');
         },
         openRouterFallback: () async {
-          final rawText = await _OpenRouterProvider().generateText(systemPrompt, 'Analyze my wardrobe and identify the biggest gap.');
+          final rawText = await _NvidiaNimProvider().generateText(systemPrompt, 'Analyze my wardrobe and identify the biggest gap.');
           return parseResponse(rawText);
         }
       );
@@ -538,7 +538,7 @@ Each object should be:
           throw Exception('No text returned');
         },
         openRouterFallback: () async {
-          final rawText = await _OpenRouterProvider().generateText(systemPrompt, 'Destination: $destination, Duration: $duration');
+          final rawText = await _NvidiaNimProvider().generateText(systemPrompt, 'Destination: $destination, Duration: $duration');
           return parseResponse(rawText);
         }
       );
@@ -615,7 +615,7 @@ Each object should be:
         throw Exception('No text returned');
       },
       openRouterFallback: () async {
-        final rawText = await _OpenRouterProvider().generateText('', basePrompt);
+        final rawText = await _NvidiaNimProvider().generateText('', basePrompt);
         return parseResponse(rawText);
       }
     );
