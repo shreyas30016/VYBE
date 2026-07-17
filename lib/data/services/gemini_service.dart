@@ -85,7 +85,6 @@ class GeminiService {
     Future<T> Function()? openRouterFallback,
   }) async {
     const models = [
-      'gemini-2.0-flash-lite',
       'gemini-2.5-flash',
     ];
 
