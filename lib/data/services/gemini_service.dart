@@ -16,7 +16,7 @@ class RateLimitException implements Exception {
   String toString() => message;
 }
 
-String _currentGeminiModel = 'gemini-1.5-flash';
+String _currentGeminiModel = 'gemini-2.0-flash-lite';
 
 bool _isRateLimitError(dynamic e) {
   final str = e.toString().toLowerCase();
@@ -25,9 +25,9 @@ bool _isRateLimitError(dynamic e) {
          str.contains('rate limit') || 
          str.contains('too many requests');
          
-  if (isRateLimit && _currentGeminiModel == 'gemini-1.5-flash') {
-    debugPrint('Rate limit hit on gemini-1.5-flash. Downgrading to gemini-1.5-flash-8b for future requests.');
-    _currentGeminiModel = 'gemini-1.5-flash-8b';
+  if (isRateLimit && _currentGeminiModel == 'gemini-2.0-flash-lite') {
+    debugPrint('Rate limit hit on gemini-2.0-flash-lite. Downgrading to gemini-2.5-flash for future requests.');
+    _currentGeminiModel = 'gemini-2.5-flash';
   }
   return isRateLimit;
 }
@@ -42,7 +42,7 @@ class GeminiService {
 
       final model = GenerativeModel(
         model: _currentGeminiModel,
-        apiKey: apiKey,
+        apiKey: apiKey, requestOptions: RequestOptions(apiVersion: 'v1alpha'),
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
         ),
@@ -151,7 +151,7 @@ class GeminiService {
 
       final model = GenerativeModel(
         model: _currentGeminiModel,
-        apiKey: apiKey,
+        apiKey: apiKey, requestOptions: RequestOptions(apiVersion: 'v1alpha'),
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
         ),
@@ -245,7 +245,7 @@ class GeminiService {
 
         final model = GenerativeModel(
           model: _currentGeminiModel,
-          apiKey: apiKey,
+          apiKey: apiKey, requestOptions: RequestOptions(apiVersion: 'v1alpha'),
           generationConfig: GenerationConfig(
             responseMimeType: 'application/json',
           ),
@@ -354,7 +354,7 @@ INSTRUCTIONS:
 
       final model = GenerativeModel(
         model: _currentGeminiModel,
-        apiKey: apiKey,
+        apiKey: apiKey, requestOptions: RequestOptions(apiVersion: 'v1alpha'),
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
         ),
@@ -421,7 +421,7 @@ INSTRUCTIONS:
 
       final model = GenerativeModel(
         model: _currentGeminiModel,
-        apiKey: apiKey,
+        apiKey: apiKey, requestOptions: RequestOptions(apiVersion: 'v1alpha'),
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
         ),
