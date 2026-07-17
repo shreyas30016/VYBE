@@ -16,43 +16,73 @@ class RateLimitException implements Exception {
   String toString() => message;
 }
 
-String _currentGeminiModel = 'gemini-2.0-flash-lite';
-
-bool _shouldFallback(dynamic e) {
-  final str = e.toString().toLowerCase();
-  
-  // Check for rate limits (429) or not found errors (404)
-  final isRateLimit = str.contains('429') || 
-         str.contains('quota') || 
-         str.contains('rate limit') || 
-         str.contains('too many requests');
-         
-  final isNotFound = str.contains('404') || 
-         str.contains('not found');
-         
-  if ((isRateLimit || isNotFound) && _currentGeminiModel == 'gemini-2.0-flash-lite') {
-    debugPrint('⚠️ [Gemini AI] Error on gemini-2.0-flash-lite (RateLimit: $isRateLimit, NotFound: $isNotFound). Downgrading to gemini-2.5-flash for future requests.');
-    _currentGeminiModel = 'gemini-2.5-flash';
-    return true;
+  bool _isRetryableError(dynamic e) {
+    final str = e.toString().toLowerCase();
+    return str.contains('429') || 
+           str.contains('quota') || 
+           str.contains('rate limit') || 
+           str.contains('too many requests') ||
+           str.contains('404') ||
+           str.contains('not found') ||
+           str.contains('503') ||
+           str.contains('timeout');
   }
-  return isRateLimit || isNotFound;
-}
 
 class GeminiService {
-  Future<Map<String, dynamic>?> analyzeClothingImage(XFile file) async {
-    try {
-      final apiKey = dotenv.env['GEMINI_API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
-        throw Exception('GEMINI_API_KEY is missing');
-      }
+  Future<T> _withModelRouter<T>(Future<T> Function(GenerativeModel model, int attempt) action) async {
+    const models = [
+      'gemini-2.0-flash-lite',
+      'gemini-2.5-flash',
+    ];
 
+    final apiKey = dotenv.env['GEMINI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception('GEMINI_API_KEY is missing');
+    }
+
+    for (final modelName in models) {
       final model = GenerativeModel(
-        model: _currentGeminiModel,
-        apiKey: apiKey, requestOptions: RequestOptions(apiVersion: 'v1alpha'),
+        model: modelName,
+        apiKey: apiKey,
+        requestOptions: const RequestOptions(apiVersion: 'v1alpha'),
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
         ),
       );
+
+      for (int attempt = 0; attempt < 2; attempt++) {
+        final stopwatch = Stopwatch()..start();
+        try {
+          final result = await action(model, attempt).timeout(const Duration(seconds: 15));
+          stopwatch.stop();
+          debugPrint('✅ [Gemini AI] Success with $modelName (Attempt ${attempt + 1}). Latency: ${stopwatch.elapsedMilliseconds}ms');
+          return result;
+        } catch (e) {
+          stopwatch.stop();
+          final isRetryable = _isRetryableError(e);
+          debugPrint('⚠️ [Gemini AI] Error with $modelName (Attempt ${attempt + 1}). Latency: ${stopwatch.elapsedMilliseconds}ms. Reason: $e');
+
+          if (attempt == 0 && isRetryable) {
+            debugPrint('⏳ [Gemini AI] Retrying $modelName in 500ms...');
+            await Future.delayed(const Duration(milliseconds: 500));
+            continue;
+          }
+
+          if (isRetryable) {
+            debugPrint('🔄 [Gemini AI] Exhausted retries for $modelName. Falling back to next model...');
+            break;
+          }
+
+          throw Exception('Stylist is taking a coffee break ☕\\nTry again in a moment.');
+        }
+      }
+    }
+
+    throw Exception('Stylist is taking a coffee break ☕\\nTry again in a moment.');
+  }
+  Future<Map<String, dynamic>?> analyzeClothingImage(XFile file) async {
+    try {
+      return await _withModelRouter((model, attempt) async {
 
       // Read image
       Uint8List imageBytes = await file.readAsBytes();
@@ -139,29 +169,16 @@ class GeminiService {
         return parsedJson;
       }
       return null;
+      });
     } catch (e) {
       debugPrint('Gemini analysis error: $e');
-      if (_shouldFallback(e)) {
-        throw RateLimitException();
-      }
       return null;
     }
   }
 
   Future<List<Map<String, dynamic>>?> analyzeClothingImagesBatch(List<XFile> files) async {
     try {
-      final apiKey = dotenv.env['GEMINI_API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
-        throw Exception('GEMINI_API_KEY is missing');
-      }
-
-      final model = GenerativeModel(
-        model: _currentGeminiModel,
-        apiKey: apiKey, requestOptions: RequestOptions(apiVersion: 'v1alpha'),
-        generationConfig: GenerationConfig(
-          responseMimeType: 'application/json',
-        ),
-      );
+      return await _withModelRouter((model, attempt) async {
 
       List<DataPart> imageParts = [];
       for (var file in files) {
@@ -227,11 +244,9 @@ class GeminiService {
         return parsedJson.cast<Map<String, dynamic>>();
       }
       return null;
+      });
     } catch (e) {
       debugPrint('Gemini batch analysis error: $e');
-      if (_shouldFallback(e)) {
-        throw RateLimitException();
-      }
       return null;
     }
   }
@@ -241,22 +256,8 @@ class GeminiService {
     List<Map<String, dynamic>> wardrobeItems,
     String? weatherContext,
   ) async {
-    int maxRetries = 1;
-    for (int attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        final apiKey = dotenv.env['GEMINI_API_KEY'];
-        if (apiKey == null || apiKey.isEmpty) {
-          throw Exception('GEMINI_API_KEY is missing');
-        }
-
-        final model = GenerativeModel(
-          model: _currentGeminiModel,
-          apiKey: apiKey, requestOptions: RequestOptions(apiVersion: 'v1alpha'),
-          generationConfig: GenerationConfig(
-            responseMimeType: 'application/json',
-          ),
-        );
-
+    try {
+      return await _withModelRouter((model, attempt) async {
         final systemPrompt = '''
 You are an expert AI fashion stylist. The user is asking for outfit recommendations based on their real wardrobe.
 Here is the user's wardrobe inventory as a JSON list of items:
@@ -336,35 +337,19 @@ INSTRUCTIONS:
           parsedJson['outfits'] = cleanOutfits;
           return parsedJson;
         }
-      } catch (e) {
-        debugPrint('Gemini analysis error (attempt $attempt): $e');
-        if (_shouldFallback(e)) {
-          throw RateLimitException();
-        }
-        if (attempt == maxRetries) {
-          throw Exception('Failed to generate recommendation. Please try again.');
-        }
-      }
+        return null;
+      });
+    } catch (e) {
+      debugPrint('Gemini analysis error: $e');
+      return null;
     }
-    return null;
   }
 
   Future<Map<String, dynamic>?> generateGapAnalysis(
     List<Map<String, dynamic>> wardrobeItems,
   ) async {
     try {
-      final apiKey = dotenv.env['GEMINI_API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
-        throw Exception('GEMINI_API_KEY is missing');
-      }
-
-      final model = GenerativeModel(
-        model: _currentGeminiModel,
-        apiKey: apiKey, requestOptions: RequestOptions(apiVersion: 'v1alpha'),
-        generationConfig: GenerationConfig(
-          responseMimeType: 'application/json',
-        ),
-      );
+      return await _withModelRouter((model, attempt) async {
 
       const systemPrompt = '''
 You are an expert AI fashion stylist. The user wants to know what key item is missing or underrepresented in their wardrobe that would unlock the most new outfit combinations.
@@ -412,6 +397,7 @@ INSTRUCTIONS:
         return parsedJson;
       }
       return null;
+      });
     } catch (e) {
       debugPrint('Gemini gap analysis error: $e');
       throw Exception('Failed to generate gap analysis. Please try again.');
@@ -420,18 +406,7 @@ INSTRUCTIONS:
 
   Future<List<Map<String, dynamic>>?> generatePackingList(String destination, String duration) async {
     try {
-      final apiKey = dotenv.env['GEMINI_API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
-        throw Exception('GEMINI_API_KEY is missing');
-      }
-
-      final model = GenerativeModel(
-        model: _currentGeminiModel,
-        apiKey: apiKey, requestOptions: RequestOptions(apiVersion: 'v1alpha'),
-        generationConfig: GenerationConfig(
-          responseMimeType: 'application/json',
-        ),
-      );
+      return await _withModelRouter((model, attempt) async {
 
       const systemPrompt = '''
 You are an expert travel planner. Create a minimal, practical packing checklist based on the user's destination and duration.
@@ -467,6 +442,7 @@ Each object should be:
         return parsedJson.cast<Map<String, dynamic>>();
       }
       return null;
+      });
     } catch (e) {
       debugPrint('Gemini packing list error: $e');
       throw Exception('Failed to generate packing list.');
@@ -481,13 +457,7 @@ Each object should be:
       throw Exception('Wardrobe is empty');
     }
 
-    int maxRetries = 1;
-    for (int attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        final model = GenerativeModel(
-          model: _currentGeminiModel,
-          apiKey: dotenv.env['GEMINI_API_KEY'] ?? '',
-        );
+    return await _withModelRouter((model, attempt) async {
         
         final weatherStr = weatherInfo != null ? "Weather is ${weatherInfo.temperature}C and ${weatherInfo.condition}." : "Weather unknown.";
         final validIds = wardrobe.map((item) => item.id).toSet();
@@ -537,17 +507,7 @@ Each object should be:
           itemIds: cleanIds,
           reasoning: parsed['reasoning'] ?? 'Here is an outfit.',
         );
-      } catch (e) {
-        debugPrint('Gemini outfit error (attempt \$attempt): \$e');
-        if (_shouldFallback(e)) {
-          throw RateLimitException();
-        }
-        if (attempt == maxRetries) {
-          throw Exception('Failed to generate outfit. Please try again.');
-        }
-      }
-    }
-    throw Exception('Failed to generate outfit after retries.');
+      });
   }
 }
 
