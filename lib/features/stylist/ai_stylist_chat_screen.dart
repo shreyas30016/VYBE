@@ -12,6 +12,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../data/services/gemini_service.dart';
 import '../../providers/wardrobe_provider.dart';
 import '../../providers/weather_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../core/utils/analytics.dart';
 import '../../core/components/glass_container.dart';
 import '../../core/components/ambient_background.dart';
@@ -321,10 +322,15 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
         return json;
       }).toList();
 
+      final uid = Supabase.instance.client.auth.currentUser?.id ?? 'local';
+      final profile = ref.read(userProfileProvider(uid)).valueOrNull;
+      final styleBaseline = profile?.styleBaseline;
+
       final suggestion = await geminiService.generateOutfitRecommendation(
         text,
         wardrobeJson,
         weatherStr,
+        styleBaseline,
       );
 
       if (mounted) {

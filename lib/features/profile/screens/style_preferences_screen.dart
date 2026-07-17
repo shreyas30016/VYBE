@@ -7,6 +7,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/components/glass_container.dart';
 import '../../../core/components/ambient_background.dart';
+import '../../../providers/user_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StylePreferencesScreen extends ConsumerStatefulWidget {
   const StylePreferencesScreen({super.key});
@@ -16,7 +18,7 @@ class StylePreferencesScreen extends ConsumerStatefulWidget {
 }
 
 class _StylePreferencesScreenState extends ConsumerState<StylePreferencesScreen> {
-  final List<String> _selectedStyles = ['Minimalist', 'Streetwear'];
+  List<String> _selectedStyles = [];
   final List<String> _styles = [
     'Minimalist', 'Streetwear', 'Old Money', 'Quiet Luxury', 
     'Casual', 'Business', 'Korean', 'Y2K', 'Techwear', 'Vintage'
@@ -26,8 +28,21 @@ class _StylePreferencesScreenState extends ConsumerState<StylePreferencesScreen>
   
   double _creativity = 0.5;
 
+  bool _isInitialized = false;
+
   @override
   Widget build(BuildContext context) {
+    final uid = Supabase.instance.client.auth.currentUser?.id ?? 'local';
+    final userProfileAsync = ref.watch(userProfileProvider(uid));
+    
+    if (!_isInitialized && userProfileAsync.valueOrNull != null) {
+      final styleStr = userProfileAsync.valueOrNull?.styleBaseline ?? '';
+      if (styleStr.isNotEmpty) {
+        _selectedStyles = styleStr.split(',').map((e) => e.trim()).toList();
+      }
+      _isInitialized = true;
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -184,6 +199,35 @@ class _StylePreferencesScreenState extends ConsumerState<StylePreferencesScreen>
                 ),
               ),
               
+              const SizedBox(height: 32),
+              
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final uid = Supabase.instance.client.auth.currentUser?.id ?? 'local';
+                    final currentProfile = await ref.read(userRepositoryProvider).getProfile(uid).first;
+                    if (currentProfile != null) {
+                      await ref.read(userRepositoryProvider).updateProfile(
+                        currentProfile.copyWith(styleBaseline: _selectedStyles.join(', ')),
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Preferences Saved!'), backgroundColor: AppColors.success),
+                        );
+                        context.pop();
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text('Save Preferences', style: AppTypography.bodyMedium.copyWith(color: Colors.black, fontWeight: FontWeight.bold)),
+                ),
+              ),
               const SizedBox(height: 40),
             ],
           ),

@@ -3,16 +3,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/components/glass_container.dart';
 import '../../../core/components/ambient_background.dart';
+import '../../../providers/user_provider.dart';
 
 class NotificationsSettingsScreen extends ConsumerWidget {
   const NotificationsSettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final uid = Supabase.instance.client.auth.currentUser?.id ?? 'local';
+    final userProfileAsync = ref.watch(userProfileProvider(uid));
+    final profile = userProfileAsync.valueOrNull;
+
+    if (profile == null) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -39,9 +52,25 @@ class NotificationsSettingsScreen extends ConsumerWidget {
                   clipBehavior: Clip.antiAlias,
                   child: Column(
                     children: [
-                      _buildSettingsToggle('Outfit ready every morning', true, (val) {}),
+                      _buildSettingsToggle(
+                        'Outfit ready every morning', 
+                        profile.notifOutfitReady, 
+                        (val) {
+                          ref.read(userRepositoryProvider).updateProfile(
+                            profile.copyWith(notifOutfitReady: val)
+                          );
+                        }
+                      ),
                       _buildDivider(),
-                      _buildSettingsToggle('Weather changed alerts', true, (val) {}),
+                      _buildSettingsToggle(
+                        'Weather changed alerts', 
+                        profile.notifWeather, 
+                        (val) {
+                          ref.read(userRepositoryProvider).updateProfile(
+                            profile.copyWith(notifWeather: val)
+                          );
+                        }
+                      ),
                     ],
                   ),
                 ),
@@ -56,11 +85,35 @@ class NotificationsSettingsScreen extends ConsumerWidget {
                   clipBehavior: Clip.antiAlias,
                   child: Column(
                     children: [
-                      _buildSettingsToggle('Laundry reminders', true, (val) {}),
+                      _buildSettingsToggle(
+                        'Laundry reminders', 
+                        profile.notifLaundry, 
+                        (val) {
+                          ref.read(userRepositoryProvider).updateProfile(
+                            profile.copyWith(notifLaundry: val)
+                          );
+                        }
+                      ),
                       _buildDivider(),
-                      _buildSettingsToggle('Unworn item alerts (25+ days)', false, (val) {}),
+                      _buildSettingsToggle(
+                        'Unworn item alerts (25+ days)', 
+                        profile.notifUnworn, 
+                        (val) {
+                          ref.read(userRepositoryProvider).updateProfile(
+                            profile.copyWith(notifUnworn: val)
+                          );
+                        }
+                      ),
                       _buildDivider(),
-                      _buildSettingsToggle('Weekly wardrobe report', true, (val) {}),
+                      _buildSettingsToggle(
+                        'Weekly wardrobe report', 
+                        profile.notifWeekly, 
+                        (val) {
+                          ref.read(userRepositoryProvider).updateProfile(
+                            profile.copyWith(notifWeekly: val)
+                          );
+                        }
+                      ),
                     ],
                   ),
                 ),
@@ -75,7 +128,15 @@ class NotificationsSettingsScreen extends ConsumerWidget {
                   clipBehavior: Clip.antiAlias,
                   child: Column(
                     children: [
-                      _buildSettingsToggle('Packing reminders', false, (val) {}),
+                      _buildSettingsToggle(
+                        'Packing reminders', 
+                        profile.notifPacking, 
+                        (val) {
+                          ref.read(userRepositoryProvider).updateProfile(
+                            profile.copyWith(notifPacking: val)
+                          );
+                        }
+                      ),
                     ],
                   ),
                 ),

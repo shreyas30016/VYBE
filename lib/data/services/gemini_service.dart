@@ -333,12 +333,18 @@ class GeminiService {
     String userPrompt,
     List<Map<String, dynamic>> wardrobeItems,
     String? weatherContext,
+    String? styleBaseline,
   ) async {
     try {
+      final stylePrompt = styleBaseline != null && styleBaseline.isNotEmpty 
+          ? '\nUSER STYLE PREFERENCES:\nThe user prefers these fashion styles: $styleBaseline. You MUST prioritize keeping the recommended outfits aligned with these styles.'
+          : '';
+
       final systemPrompt = '''
 You are an expert AI fashion stylist. The user is asking for outfit recommendations based on their real wardrobe.
 Here is the user's wardrobe inventory as a JSON list of items:
 ${jsonEncode(wardrobeItems)}
+$stylePrompt
 
 INSTRUCTIONS:
 1. Recommend one or more cohesive outfits composed ONLY of items from the provided wardrobe list. If the user asks for a specific number of days (e.g. "3 days"), provide exactly that many distinct outfits. If not specified, provide 1 outfit.

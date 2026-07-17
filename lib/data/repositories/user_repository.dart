@@ -7,6 +7,7 @@ import '../../core/utils/hive_setup.dart';
 abstract class UserRepository {
   Future<void> updateProfile(UserProfile profile);
   Stream<UserProfile?> getProfile(String userId);
+  Future<String?> uploadProfileImage(Uint8List imageBytes, String extension);
 }
 
 class UserRepositoryImpl implements UserRepository {
@@ -24,6 +25,7 @@ class UserRepositoryImpl implements UserRepository {
     return {
       'id': profile.userId,
       'name': profile.name,
+      'avatar_url': profile.profileImageUrl,
       if (profile.styleBaseline != null) 'style_preferences': [profile.styleBaseline!],
     };
   }
@@ -59,5 +61,26 @@ class UserRepositoryImpl implements UserRepository {
       return UserProfile.fromJson(Map<String, dynamic>.from(raw));
     }
     return null;
+  }
+
+  @override
+  Future<String?> uploadProfileImage(Uint8List imageBytes, String extension) async {
+    if (supabase == null) return null;
+    try {
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$extension';
+      final filePath = '$uid/$fileName';
+      
+      await supabase!.storage.from('avatars').uploadBinary(
+        filePath,
+        imageBytes,
+        fileOptions: FileOptions(contentType: 'image/$extension', upsert: true),
+      );
+      
+      final publicUrl = supabase!.storage.from('avatars').getPublicUrl(filePath);
+      return publicUrl;
+    } catch (e) {
+      debugPrint('Failed to upload profile image: $e');
+      return null;
+    }
   }
 }
