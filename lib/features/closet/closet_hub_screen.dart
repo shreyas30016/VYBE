@@ -201,7 +201,7 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
                     final item = items[index];
                     return _buildGridItem(
                       item,
-                      '95%', // Hardcoded fallback for UI
+                      '${(item.confidence * 100).round()}%',
                       _formatLastWorn(item.lastWorn, item.dateAdded),
                       Icons.checkroom,
                     );
@@ -280,7 +280,7 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
             bottom: 12,
             left: 12,
             child: Text(
-              'Last worn: $lastWorn',
+              lastWorn,
               style: AppTypography.bodySmall.copyWith(
                 color: AppColors.textSecondary,
                 fontSize: 11,
