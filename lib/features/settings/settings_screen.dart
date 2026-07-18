@@ -163,7 +163,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: selectedGender,
+                      initialValue: selectedGender,
                       dropdownColor: const Color(0xFF1E1E1E),
                       style: const TextStyle(color: AppColors.textPrimary),
                       decoration: InputDecoration(
@@ -189,7 +189,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: selectedAgeGroup,
+                      initialValue: selectedAgeGroup,
                       dropdownColor: const Color(0xFF1E1E1E),
                       style: const TextStyle(color: AppColors.textPrimary),
                       decoration: InputDecoration(

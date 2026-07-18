@@ -183,7 +183,6 @@ class _StylePreferencesScreenState extends ConsumerState<StylePreferencesScreen>
                 padding: EdgeInsets.zero,
                 child: Column(
                   children: _weatherOptions.map((option) {
-                    final isSelected = _weatherPref == option;
                     return Column(
                       children: [
                         ListTile(
