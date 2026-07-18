@@ -20,7 +20,21 @@ class ClosetHubScreen extends ConsumerStatefulWidget {
 
 class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
   String _selectedCategory = 'All';
+  bool _isSearching = false;
+  String _searchQuery = '';
+  String? _selectedSeason;
+  String? _selectedColor;
+  final TextEditingController _searchController = TextEditingController();
+
   final List<String> _categories = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Shoes'];
+  final List<String> _seasons = ['Summer', 'Winter', 'Spring', 'Fall', 'All Season'];
+  final List<String> _colors = ['Black', 'White', 'Blue', 'Red', 'Green', 'Brown', 'Grey', 'Navy'];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,16 +49,42 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('Wardrobe', style: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary)),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: 'Search items...',
+                  hintStyle: TextStyle(color: Colors.white54),
+                  border: InputBorder.none,
+                ),
+                onChanged: (val) {
+                  setState(() {
+                    _searchQuery = val;
+                  });
+                },
+              )
+            : Text('Wardrobe', style: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary)),
         centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(LucideIcons.search, color: AppColors.textPrimary),
-            onPressed: () {},
+            icon: Icon(_isSearching ? LucideIcons.x : LucideIcons.search, color: AppColors.textPrimary),
+            onPressed: () {
+              setState(() {
+                if (_isSearching) {
+                  _isSearching = false;
+                  _searchQuery = '';
+                  _searchController.clear();
+                } else {
+                  _isSearching = true;
+                }
+              });
+            },
           ),
           IconButton(
-            icon: const Icon(LucideIcons.slidersHorizontal, color: AppColors.textPrimary),
-            onPressed: () {},
+            icon: Icon(LucideIcons.slidersHorizontal, color: (_selectedSeason != null || _selectedColor != null) ? AppColors.primary : AppColors.textPrimary),
+            onPressed: _showFilterSheet,
           ),
           const SizedBox(width: AppSpacing.sm),
         ],
@@ -121,7 +161,21 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
           // Grid
           Expanded(
             child: wardrobeAsync.when(
-              data: (items) {
+              data: (rawItems) {
+                final items = rawItems.where((item) {
+                  if (_searchQuery.isNotEmpty) {
+                    final query = _searchQuery.toLowerCase();
+                    if (!item.category.toLowerCase().contains(query) &&
+                        !(item.color?.toLowerCase().contains(query) ?? false) &&
+                        !(item.subtype?.toLowerCase().contains(query) ?? false)) {
+                      return false;
+                    }
+                  }
+                  if (_selectedSeason != null && item.season != _selectedSeason) return false;
+                  if (_selectedColor != null && item.color != _selectedColor) return false;
+                  return true;
+                }).toList();
+
                 if (items.isEmpty) {
                   return const Center(
                     child: Text('No items found.', style: TextStyle(color: Colors.white54)),
@@ -145,7 +199,7 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
                     return _buildGridItem(
                       item,
                       '95%', // Hardcoded fallback for UI
-                      '2d ago', // Hardcoded fallback for UI
+                      _formatLastWorn(item.lastWorn, item.dateAdded),
                       Icons.checkroom,
                     );
                   },
@@ -235,4 +289,115 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
     ),
   );
 }
+
+  String _formatLastWorn(DateTime? lastWorn, DateTime dateAdded) {
+    if (lastWorn == null) {
+      final days = DateTime.now().difference(dateAdded).inDays;
+      if (days == 0) return 'Added today';
+      if (days == 1) return 'Added yesterday';
+      return 'Added ${days}d ago';
+    }
+    
+    final days = DateTime.now().difference(lastWorn).inDays;
+    if (days == 0) return 'Worn today';
+    if (days == 1) return 'Worn yesterday';
+    return 'Worn ${days}d ago';
+  }
+
+  void _showFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Filters', style: AppTypography.headingMedium.copyWith(color: Colors.white)),
+                      TextButton(
+                        onPressed: () {
+                          setModalState(() {
+                            _selectedSeason = null;
+                            _selectedColor = null;
+                          });
+                          setState(() {
+                            _selectedSeason = null;
+                            _selectedColor = null;
+                          });
+                        },
+                        child: const Text('Clear All', style: TextStyle(color: AppColors.primary)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Season', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _seasons.map((season) {
+                      final isSelected = _selectedSeason == season;
+                      return ChoiceChip(
+                        label: Text(season, style: TextStyle(color: isSelected ? Colors.black : Colors.white)),
+                        selected: isSelected,
+                        selectedColor: AppColors.primary,
+                        backgroundColor: Colors.black45,
+                        onSelected: (val) {
+                          setModalState(() => _selectedSeason = val ? season : null);
+                          setState(() => _selectedSeason = val ? season : null);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+                  Text('Color', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _colors.map((color) {
+                      final isSelected = _selectedColor == color;
+                      return ChoiceChip(
+                        label: Text(color, style: TextStyle(color: isSelected ? Colors.black : Colors.white)),
+                        selected: isSelected,
+                        selectedColor: AppColors.primary,
+                        backgroundColor: Colors.black45,
+                        onSelected: (val) {
+                          setModalState(() => _selectedColor = val ? color : null);
+                          setState(() => _selectedColor = val ? color : null);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Apply Filters', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 }
