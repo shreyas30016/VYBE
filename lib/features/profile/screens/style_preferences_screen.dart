@@ -8,6 +8,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/components/glass_container.dart';
 import '../../../core/components/ambient_background.dart';
 import '../../../providers/user_provider.dart';
+import '../../../data/models/user_profile.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class StylePreferencesScreen extends ConsumerStatefulWidget {
