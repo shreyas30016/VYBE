@@ -223,12 +223,28 @@ class _StylePreferencesScreenState extends ConsumerState<StylePreferencesScreen>
                           styleBaseline: _selectedStyles.join(', '), // fallback
                         ),
                       );
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Preferences Saved!'), backgroundColor: AppColors.success),
-                        );
-                        context.pop();
-                      }
+                    } else {
+                      await ref.read(userRepositoryProvider).updateProfile(
+                        UserProfile(
+                          userId: uid,
+                          name: 'User',
+                          styles: _selectedStyles,
+                          favoriteBrands: _selectedBrands,
+                          outfitCreativity: _creativity,
+                          weatherPreference: _weatherPref,
+                          styleBaseline: _selectedStyles.join(', '),
+                          calendarSyncEnabled: false,
+                          weatherContextEnabled: false,
+                          hapticsEnabled: true,
+                          hapticIntensity: 0.5,
+                        ),
+                      );
+                    }
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Preferences Saved!'), backgroundColor: AppColors.success),
+                      );
+                      context.pop();
                     }
                   },
                   style: ElevatedButton.styleFrom(

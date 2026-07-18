@@ -25,14 +25,14 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen> {
   Widget build(BuildContext context) {
     final uid = Supabase.instance.client.auth.currentUser?.id ?? 'local';
     final userProfileAsync = ref.watch(userProfileProvider(uid));
-    final profile = userProfileAsync.valueOrNull;
-
-    if (profile == null) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-      );
-    }
+    final profile = userProfileAsync.valueOrNull ?? UserProfile(
+      userId: uid,
+      name: 'User',
+      calendarSyncEnabled: false,
+      weatherContextEnabled: false,
+      hapticsEnabled: true,
+      hapticIntensity: 0.5,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
