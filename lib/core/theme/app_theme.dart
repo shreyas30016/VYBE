@@ -9,9 +9,9 @@ class AppTheme {
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.background,
       primaryColor: AppColors.primary,
-      colorScheme: const ColorScheme.dark(
+      colorScheme: ColorScheme.dark(
         primary: AppColors.primary,
-        surface: AppColors.card,
+        secondary: AppColors.primary,
         error: AppColors.error,
         onSurfaceVariant: AppColors.textSecondary,
         outlineVariant: AppColors.stroke,

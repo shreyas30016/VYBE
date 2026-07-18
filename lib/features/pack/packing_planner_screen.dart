@@ -281,7 +281,7 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
                         ),
                       );
                     },
-                    loading: () => $1liverFillRemaining(child: Center(child: CircularProgressIndicator(color: AppColors.primary))),
+                    loading: () => SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: AppColors.primary))),
                     error: (e, st) => SliverFillRemaining(child: Center(child: Text('Error loading trips', style: TextStyle(color: Colors.white)))),
                   ),
                 ],

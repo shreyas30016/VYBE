@@ -144,7 +144,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                                 child: Container(
                                   width: 8,
                                   height: 8,
-                                  decoration: const BoxDecoration(
+                                  decoration: BoxDecoration(
                                     color: AppColors.primary,
                                     shape: BoxShape.circle,
                                   ),
@@ -481,7 +481,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 6.0),
             child: CircleAvatar(radius: 3, backgroundColor: AppColors.primary),
           ),
@@ -610,7 +610,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                           leading: Container(
                             width: 40,
                             height: 40,
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               color: AppColors.background,
                               shape: BoxShape.circle,
                             ),
