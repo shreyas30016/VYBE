@@ -715,7 +715,11 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () {}, // Optional image attachment for later
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Visual Search coming soon! 📸')),
+              );
+            },
             child: Container(
               width: 44,
               height: 44,
@@ -743,7 +747,11 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   suffixIcon: IconButton(
                     icon: const Icon(LucideIcons.mic, color: AppColors.textSecondary, size: 20),
-                    onPressed: () {}, // Optional voice input for later
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Voice Input coming soon! 🎤')),
+                      );
+                    },
                   ),
                 ),
                 onSubmitted: (_) => _sendMessage(),
