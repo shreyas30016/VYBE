@@ -59,23 +59,17 @@ class AiStylistChatScreen extends ConsumerStatefulWidget {
 }
 
 class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
-  List<ChatMessage> _messages = [
-    ChatMessage(
-      id: '0',
-      text: "Hey there! I'm your AI Stylist. Tell me what you're dressing for (e.g., 'I have a dinner date tonight' or 'What should I wear to the office tomorrow?').",
-      isUser: false,
-    ),
-  ];
-  
-  bool _showSuggestions = true;
+  List<ChatMessage> _messages = [];
+
   final List<String> _suggestions = [
-    'Work',
-    'College',
-    'Date',
-    'Party',
-    'Travel',
-    'Gym',
-    'Build today\'s outfit'
+    '✨ Style me for college',
+    '💼 Dress for an interview',
+    '🎉 Pick a party outfit',
+    '☔ Outfit for today\'s weather',
+    '🧳 Pack for my trip',
+    '👟 Style these sneakers',
+    '🛍 Build a capsule wardrobe',
+    '❤️ Plan my date night look'
   ];
   
   final List<String> _loadingPhrases = [
@@ -98,34 +92,9 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCurrentSession();
   }
 
-  void _loadCurrentSession() {
-    final uid = Supabase.instance.client.auth.currentUser?.id;
-    if (uid == null) return;
-    try {
-      final box = Hive.box<Map>('chats_$uid');
-      if (box.isNotEmpty) {
-        final keys = box.keys.toList()..sort();
-        final lastKey = keys.last;
-        final sessionData = box.get(lastKey);
-        if (sessionData != null) {
-          final messagesData = sessionData['messages'] as List<dynamic>? ?? [];
-          if (messagesData.isNotEmpty) {
-            setState(() {
-              _sessionId = lastKey.toString();
-              _messages = messagesData.map((m) => ChatMessage.fromJson(m as Map)).toList();
-              _showSuggestions = _messages.length <= 1;
-            });
-            _scrollToBottom();
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Error loading chat session: $e');
-    }
-  }
+
 
   void _saveCurrentSession() {
     final uid = Supabase.instance.client.auth.currentUser?.id;
@@ -160,8 +129,8 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) {
         return Container(
-          padding: const EdgeInsets.all(16),
-          height: 400,
+          padding: const EdgeInsets.only(top: 16, left: 16, right: 16),
+          height: MediaQuery.of(context).size.height * 0.7,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -170,75 +139,117 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
               Expanded(
                 child: keys.isEmpty || box == null
                     ? const Center(child: Text('No previous chats', style: TextStyle(color: Colors.grey)))
-                    : ListView.builder(
-                        itemCount: keys.length,
-                        itemBuilder: (context, index) {
-                          final key = keys[index];
-                          final session = box!.get(key);
-                          final messages = session?['messages'] as List<dynamic>? ?? [];
-                          final firstUserMsg = messages.firstWhere((m) => (m['isUser'] as bool?) == true, orElse: () => {'text': 'New Chat'});
-                          
-                          DateTime? date;
-                          try {
-                            date = DateTime.parse(session?['timestamp'] as String? ?? '');
-                          } catch (_) {}
-                          
-                          final dateStr = date != null ? '\${date.month}/\${date.day}/\${date.year}' : '';
-                          
-                          return ListTile(
-                            leading: const Icon(LucideIcons.messageSquare, color: AppColors.primary),
-                            title: Text(
-                              firstUserMsg['text'] as String? ?? 'Chat',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            subtitle: Text(
-                              dateStr,
-                              style: const TextStyle(color: Colors.white54, fontSize: 12),
-                            ),
-                            onTap: () {
-                              setState(() {
-                                _sessionId = key.toString();
-                                _messages = messages.map((m) => ChatMessage.fromJson(m as Map)).toList();
-                                _showSuggestions = _messages.length <= 1;
-                              });
-                              Navigator.pop(context);
-                              _scrollToBottom();
-                            },
-                          );
-                        },
-                      ),
+                    : _buildHistoryContent(keys, box),
               ),
               const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.black,
+              SafeArea(
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _sessionId = DateTime.now().millisecondsSinceEpoch.toString();
+                        _messages = [];
+                      });
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Start New Chat', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _sessionId = DateTime.now().millisecondsSinceEpoch.toString();
-                      _messages = [
-                        ChatMessage(
-                          id: '0',
-                          text: "Hey there! I'm your AI Stylist. Tell me what you're dressing for (e.g., 'I have a dinner date tonight' or 'What should I wear to the office tomorrow?').",
-                          isUser: false,
-                        ),
-                      ];
-                      _showSuggestions = true;
-                    });
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Start New Chat', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
+              const SizedBox(height: 16),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildHistoryContent(List<dynamic> keys, Box<Map> box) {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final yesterdayStart = todayStart.subtract(const Duration(days: 1));
+    final lastWeekStart = todayStart.subtract(const Duration(days: 7));
+
+    List<Widget> today = [];
+    List<Widget> yesterday = [];
+    List<Widget> lastWeek = [];
+    List<Widget> older = [];
+
+    for (var key in keys) {
+      final session = box.get(key);
+      if (session == null) continue;
+      
+      final messages = session['messages'] as List<dynamic>? ?? [];
+      if (messages.isEmpty) continue; // Skip empty chats
+      final firstUserMsg = messages.firstWhere((m) => (m['isUser'] as bool?) == true, orElse: () => {'text': 'Stylist Session'});
+      
+      DateTime date = DateTime.fromMillisecondsSinceEpoch(0);
+      try {
+        date = DateTime.parse(session['timestamp'] as String? ?? '');
+      } catch (_) {}
+      
+      final tile = ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(LucideIcons.messageSquare, color: AppColors.primary),
+        title: Text(
+          firstUserMsg['text'] as String? ?? 'Stylist Session',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white),
+        ),
+        onTap: () {
+          setState(() {
+            _sessionId = key.toString();
+            _messages = messages.map((m) => ChatMessage.fromJson(m as Map)).toList();
+          });
+          Navigator.pop(context);
+          _scrollToBottom();
+        },
+      );
+
+      if (date.isAfter(todayStart) || date.isAtSameMomentAs(todayStart)) {
+        today.add(tile);
+      } else if (date.isAfter(yesterdayStart) || date.isAtSameMomentAs(yesterdayStart)) {
+        yesterday.add(tile);
+      } else if (date.isAfter(lastWeekStart) || date.isAtSameMomentAs(lastWeekStart)) {
+        lastWeek.add(tile);
+      } else {
+        older.add(tile);
+      }
+    }
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (today.isNotEmpty) ...[
+            Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('Today', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary))),
+            ...today,
+            const SizedBox(height: 16),
+          ],
+          if (yesterday.isNotEmpty) ...[
+            Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('Yesterday', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary))),
+            ...yesterday,
+            const SizedBox(height: 16),
+          ],
+          if (lastWeek.isNotEmpty) ...[
+            Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('Last Week', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary))),
+            ...lastWeek,
+            const SizedBox(height: 16),
+          ],
+          if (older.isNotEmpty) ...[
+            Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('Older', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary))),
+            ...older,
+          ],
+        ],
+      ),
     );
   }
 
@@ -264,7 +275,6 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
     if (text.isEmpty || _isLoading) return;
 
     setState(() {
-      _showSuggestions = false;
       _messages.add(ChatMessage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         text: text,
@@ -415,9 +425,11 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
       body: AmbientBackground(
         child: wardrobe.isEmpty
             ? _buildEmptyState()
-            : Column(
-                children: [
-                  Expanded(
+            : _messages.isEmpty
+                ? _buildHomeState()
+                : Column(
+                    children: [
+                      Expanded(
                     child: ListView.builder(
                       controller: _scrollController,
                       padding: const EdgeInsets.only(
@@ -426,13 +438,9 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
                         top: 16,
                         bottom: 16,
                       ),
-                      itemCount: _messages.length + (_showSuggestions ? 1 : 0),
+                      itemCount: _messages.length,
                       itemBuilder: (context, index) {
-                        if (index < _messages.length) {
-                          return _buildMessageBubble(_messages[index]);
-                        } else {
-                          return _buildSuggestionChips();
-                        }
+                        return _buildMessageBubble(_messages[index]);
                       },
                     ),
                   ),
@@ -511,40 +519,65 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
     );
   }
 
-  Widget _buildSuggestionChips() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'What are you dressing for?',
-            style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _suggestions.map((suggestion) {
-              return GestureDetector(
-                onTap: () => _sendSuggestion(suggestion),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A2A),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                  ),
-                  child: Text(
-                    suggestion,
-                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary),
-                  ),
+  Widget _buildHomeState() {
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.margin, vertical: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 32),
+                Text(
+                  'AI Stylist',
+                  style: AppTypography.headingLarge.copyWith(color: AppColors.textPrimary, fontSize: 32),
                 ),
-              );
-            }).toList(),
+                const SizedBox(height: 8),
+                Text(
+                  'What should I wear today?',
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 48),
+                
+                // Prompt Cards
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _suggestions.length,
+                  itemBuilder: (context, index) {
+                    final suggestion = _suggestions[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12.0),
+                      child: GestureDetector(
+                        onTap: () {
+                          _sendSuggestion(suggestion);
+                        },
+                        child: GlassContainer(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          borderRadius: 16,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  suggestion,
+                                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary),
+                                ),
+                              ),
+                              const Icon(LucideIcons.chevronRight, color: AppColors.textSecondary, size: 20),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        ),
+        _buildChatInput(),
+      ],
     );
   }
 
