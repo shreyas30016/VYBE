@@ -33,7 +33,7 @@ class NotificationsSettingsScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, color: AppColors.textPrimary),
+          icon: Icon(LucideIcons.arrowLeft, color: AppColors.textPrimary),
           onPressed: () => context.pop(),
         ),
         title: Text('Notifications', style: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary)),

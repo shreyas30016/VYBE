@@ -14,7 +14,6 @@ class UserProfile {
 
   // Settings & Privacy
   final String appTheme;
-  final String accentColor;
   final bool saveAiChats;
   final bool uploadAnalytics;
   final bool personalization;
@@ -49,7 +48,6 @@ class UserProfile {
     this.outfitCreativity = 0.5,
     this.weatherPreference = 'Auto Detect',
     this.appTheme = 'System',
-    this.accentColor = 'Neon Green',
     this.saveAiChats = true,
     this.uploadAnalytics = true,
     this.personalization = true,
@@ -81,7 +79,6 @@ class UserProfile {
     double? outfitCreativity,
     String? weatherPreference,
     String? appTheme,
-    String? accentColor,
     bool? saveAiChats,
     bool? uploadAnalytics,
     bool? personalization,
@@ -112,7 +109,6 @@ class UserProfile {
       outfitCreativity: outfitCreativity ?? this.outfitCreativity,
       weatherPreference: weatherPreference ?? this.weatherPreference,
       appTheme: appTheme ?? this.appTheme,
-      accentColor: accentColor ?? this.accentColor,
       saveAiChats: saveAiChats ?? this.saveAiChats,
       uploadAnalytics: uploadAnalytics ?? this.uploadAnalytics,
       personalization: personalization ?? this.personalization,
@@ -146,7 +142,6 @@ class UserProfile {
       'outfitCreativity': outfitCreativity,
       'weatherPreference': weatherPreference,
       'appTheme': appTheme,
-      'accentColor': accentColor,
       'saveAiChats': saveAiChats,
       'uploadAnalytics': uploadAnalytics,
       'personalization': personalization,
@@ -180,7 +175,6 @@ class UserProfile {
       outfitCreativity: (json['outfitCreativity'] as num?)?.toDouble() ?? 0.5,
       weatherPreference: json['weatherPreference'] as String? ?? 'Auto Detect',
       appTheme: json['appTheme'] as String? ?? 'System',
-      accentColor: json['accentColor'] as String? ?? 'Neon Green',
       saveAiChats: json['saveAiChats'] as bool? ?? true,
       uploadAnalytics: json['uploadAnalytics'] as bool? ?? true,
       personalization: json['personalization'] as bool? ?? true,

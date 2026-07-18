@@ -25,7 +25,7 @@ class UserRepositoryImpl implements UserRepository {
     return {
       'id': profile.userId,
       'name': profile.name,
-      'avatar_url': profile.profileImageUrl,
+      if (profile.profileImageUrl != null) 'profile_image_url': profile.profileImageUrl,
       if (profile.styleBaseline != null) 'style_preferences': [profile.styleBaseline!],
     };
   }

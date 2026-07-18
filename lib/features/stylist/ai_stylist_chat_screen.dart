@@ -197,7 +197,7 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
       
       final tile = ListTile(
         contentPadding: EdgeInsets.zero,
-        leading: const Icon(LucideIcons.messageSquare, color: AppColors.primary),
+        leading: Icon(LucideIcons.messageSquare, color: AppColors.primary),
         title: Text(
           firstUserMsg['text'] as String? ?? 'Stylist Session',
           maxLines: 1,
@@ -230,22 +230,22 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (today.isNotEmpty) ...[
-            Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('Today', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary))),
+            Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Today', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary))),
             ...today,
             const SizedBox(height: 16),
           ],
           if (yesterday.isNotEmpty) ...[
-            Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('Yesterday', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary))),
+            Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Yesterday', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary))),
             ...yesterday,
             const SizedBox(height: 16),
           ],
           if (lastWeek.isNotEmpty) ...[
-            Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('Last Week', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary))),
+            Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Last Week', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary))),
             ...lastWeek,
             const SizedBox(height: 16),
           ],
           if (older.isNotEmpty) ...[
-            Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('Older', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary))),
+            Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Older', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary))),
             ...older,
           ],
         ],
@@ -410,14 +410,14 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(LucideIcons.chevronLeft, color: AppColors.textPrimary),
+          icon: Icon(LucideIcons.chevronLeft, color: AppColors.textPrimary),
           onPressed: () => context.go('/home'),
         ),
         title: Text('AI Stylist', style: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary)),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(LucideIcons.history, color: AppColors.textPrimary),
+            icon: Icon(LucideIcons.history, color: AppColors.textPrimary),
             onPressed: _showChatHistory,
           ),
         ],
@@ -450,7 +450,7 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
                       child: Row(
                         children: [
                           const SizedBox(width: 16),
-                          const SizedBox(
+                          SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
@@ -470,7 +470,7 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
                             child: Text(
                               _loadingPhrases[_currentPhraseIndex],
                               key: ValueKey<int>(_currentPhraseIndex),
-                              style: const TextStyle(color: AppColors.textSecondary),
+                              style: TextStyle(color: AppColors.textSecondary),
                             ),
                           ),
                         ],
@@ -490,7 +490,7 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(LucideIcons.shirt, size: 64, color: AppColors.textSecondary),
+            Icon(LucideIcons.shirt, size: 64, color: AppColors.textSecondary),
             const SizedBox(height: 16),
             Text(
               'Your wardrobe is empty',
@@ -564,7 +564,7 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
                                   style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary),
                                 ),
                               ),
-                              const Icon(LucideIcons.chevronRight, color: AppColors.textSecondary, size: 20),
+                              Icon(LucideIcons.chevronRight, color: AppColors.textSecondary, size: 20),
                             ],
                           ),
                         ),
@@ -583,7 +583,7 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
 
   Widget _buildMessageBubble(ChatMessage message) {
     final align = message.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final bgColor = message.isUser ? AppColors.primary : const Color(0xFF222222);
+    final bgColor = message.isUser ? AppColors.primary : Color(0xFF222222);
     final textColor = message.isUser ? Colors.black : Colors.white;
 
     return Padding(
@@ -683,19 +683,19 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
       return Image.memory(
         base64Decode(base64String),
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => const Icon(LucideIcons.imageOff, color: AppColors.textSecondary),
+        errorBuilder: (context, error, stackTrace) => Icon(LucideIcons.imageOff, color: AppColors.textSecondary),
       );
     } else if (imageUrl.startsWith('http') || imageUrl.startsWith('blob:')) {
       return Image.network(
         imageUrl,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => const Icon(LucideIcons.imageOff, color: AppColors.textSecondary),
+        errorBuilder: (context, error, stackTrace) => Icon(LucideIcons.imageOff, color: AppColors.textSecondary),
       );
     } else {
       return Image.file(
         File(imageUrl),
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => const Icon(LucideIcons.imageOff, color: AppColors.textSecondary),
+        errorBuilder: (context, error, stackTrace) => Icon(LucideIcons.imageOff, color: AppColors.textSecondary),
       );
     }
   }
@@ -727,7 +727,7 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
                 color: Color(0xFF2A2A2A),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(LucideIcons.camera, color: AppColors.textSecondary, size: 20),
+              child: Icon(LucideIcons.camera, color: AppColors.textSecondary, size: 20),
             ),
           ),
           const SizedBox(width: 8),
@@ -742,11 +742,11 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Ask me what to wear...',
-                  hintStyle: const TextStyle(color: AppColors.textSecondary),
+                  hintStyle: TextStyle(color: AppColors.textSecondary),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   suffixIcon: IconButton(
-                    icon: const Icon(LucideIcons.mic, color: AppColors.textSecondary, size: 20),
+                    icon: Icon(LucideIcons.mic, color: AppColors.textSecondary, size: 20),
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Voice Input coming soon! 🎤')),
@@ -764,7 +764,7 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
             child: Container(
               width: 44,
               height: 44,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.primary,
                 shape: BoxShape.circle,
               ),

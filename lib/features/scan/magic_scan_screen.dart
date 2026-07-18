@@ -874,7 +874,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Loading Text Top
-                const Text(
+                Text(
                   'SCANNING FITS...',
                   style: TextStyle(
                     color: AppColors.primary,
@@ -979,7 +979,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
                         const SizedBox(height: 8),
                         Text(
                           '${(_batchProcessedCount / math.max(1, _batchFiles.length) * 100).toInt()}%',
-                          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
                         )
                       ],
                     ),
@@ -1048,7 +1048,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
                     children: [
                       Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                        decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
                         child: const Icon(LucideIcons.check, color: Colors.black, size: 12),
                       ),
                       const SizedBox(width: 6),
@@ -1059,7 +1059,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
                 
               // Scanned & Approved Bottom Text
               if (isApproved)
-                const Positioned(
+                Positioned(
                   bottom: 16,
                   left: 0,
                   right: 0,
@@ -1205,7 +1205,7 @@ class _MagicScanScreenState extends ConsumerState<MagicScanScreen> with TickerPr
                   child: _currentState == ScanState.completed
                       ? const Icon(LucideIcons.check, color: Colors.black, size: 32).animate().scale(delay: 200.ms)
                       : isProcessing
-                          ? const CircularProgressIndicator(color: AppColors.primary)
+                          ? CircularProgressIndicator(color: AppColors.primary)
                           : const Icon(LucideIcons.sparkles, color: Colors.black, size: 32),
                 ),
               ),

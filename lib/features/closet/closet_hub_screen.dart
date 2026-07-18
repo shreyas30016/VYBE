@@ -103,7 +103,7 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(LucideIcons.wifiOff, size: 12, color: AppColors.warning),
+                  Icon(LucideIcons.wifiOff, size: 12, color: AppColors.warning),
                   const SizedBox(width: 8),
                   Text(
                     'Offline: Using cached wardrobe',
@@ -348,7 +348,7 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
                             _selectedColor = null;
                           });
                         },
-                        child: const Text('Clear All', style: TextStyle(color: AppColors.primary)),
+                        child: Text('Clear All', style: TextStyle(color: AppColors.primary)),
                       ),
                     ],
                   ),

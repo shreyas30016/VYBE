@@ -29,7 +29,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(LucideIcons.chevronLeft, color: AppColors.textPrimary),
+          icon: Icon(LucideIcons.chevronLeft, color: AppColors.textPrimary),
           onPressed: () => context.pop(),
         ),
         title: Text('Account', style: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary)),
@@ -147,17 +147,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const SizedBox(height: 24),
                     TextField(
                       controller: nameController,
-                      style: const TextStyle(color: AppColors.textPrimary),
+                      style: TextStyle(color: AppColors.textPrimary),
                       decoration: InputDecoration(
                         labelText: 'Name',
-                        labelStyle: const TextStyle(color: AppColors.textSecondary),
+                        labelStyle: TextStyle(color: AppColors.textSecondary),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.primary),
+                          borderSide: BorderSide(color: AppColors.primary),
                         ),
                       ),
                     ),
@@ -165,17 +165,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     DropdownButtonFormField<String>(
                       initialValue: selectedGender,
                       dropdownColor: const Color(0xFF1E1E1E),
-                      style: const TextStyle(color: AppColors.textPrimary),
+                      style: TextStyle(color: AppColors.textPrimary),
                       decoration: InputDecoration(
                         labelText: 'Gender (Optional)',
-                        labelStyle: const TextStyle(color: AppColors.textSecondary),
+                        labelStyle: TextStyle(color: AppColors.textSecondary),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.primary),
+                          borderSide: BorderSide(color: AppColors.primary),
                         ),
                       ),
                       items: ['Unspecified', 'Male', 'Female', 'Non-binary', 'Prefer not to say']
@@ -191,17 +191,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     DropdownButtonFormField<String>(
                       initialValue: selectedAgeGroup,
                       dropdownColor: const Color(0xFF1E1E1E),
-                      style: const TextStyle(color: AppColors.textPrimary),
+                      style: TextStyle(color: AppColors.textPrimary),
                       decoration: InputDecoration(
                         labelText: 'Age Group (Optional)',
-                        labelStyle: const TextStyle(color: AppColors.textSecondary),
+                        labelStyle: TextStyle(color: AppColors.textSecondary),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.primary),
+                          borderSide: BorderSide(color: AppColors.primary),
                         ),
                       ),
                       items: ['Under 18', '18-24', '25-34', '35-44', '45-54', '55+']

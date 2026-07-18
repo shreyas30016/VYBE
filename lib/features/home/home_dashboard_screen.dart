@@ -135,7 +135,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                         child: Stack(
                           clipBehavior: Clip.none,
                           children: [
-                            const Icon(LucideIcons.bell, color: AppColors.textSecondary, size: 24),
+                            Icon(LucideIcons.bell, color: AppColors.textSecondary, size: 24),
                             // Simple red dot if items exist
                             if (wardrobeItemsAsync.valueOrNull?.isNotEmpty ?? false)
                               Positioned(
@@ -168,7 +168,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                               : null,
                         ),
                         child: avatarUrl == null
-                            ? const Icon(LucideIcons.user, color: AppColors.textSecondary, size: 20)
+                            ? Icon(LucideIcons.user, color: AppColors.textSecondary, size: 20)
                             : null,
                       ),
                     ],
@@ -210,7 +210,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(LucideIcons.shirt, color: AppColors.textSecondary, size: 48),
+                                Icon(LucideIcons.shirt, color: AppColors.textSecondary, size: 48),
                                 const SizedBox(height: 16),
                                 Text(
                                   'No outfit logged today.',
@@ -502,13 +502,13 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
       return Image.network(
         imageUrl,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => const Icon(LucideIcons.imageOff, color: AppColors.textSecondary),
+        errorBuilder: (context, error, stackTrace) => Icon(LucideIcons.imageOff, color: AppColors.textSecondary),
       );
     } else {
       return Image.file(
         File(imageUrl),
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => const Icon(LucideIcons.imageOff, color: AppColors.textSecondary),
+        errorBuilder: (context, error, stackTrace) => Icon(LucideIcons.imageOff, color: AppColors.textSecondary),
       );
     }
   }
@@ -594,7 +594,7 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                     children: [
                       Text('Recent Activity', style: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary)),
                       IconButton(
-                        icon: const Icon(LucideIcons.x, color: AppColors.textSecondary),
+                        icon: Icon(LucideIcons.x, color: AppColors.textSecondary),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],

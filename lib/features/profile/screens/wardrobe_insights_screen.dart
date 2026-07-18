@@ -116,7 +116,7 @@ class _WardrobeInsightsScreenState extends ConsumerState<WardrobeInsightsScreen>
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, color: AppColors.textPrimary),
+          icon: Icon(LucideIcons.arrowLeft, color: AppColors.textPrimary),
           onPressed: () => context.pop(),
         ),
         title: Text('Wardrobe Insights', style: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary)),
@@ -215,7 +215,7 @@ class _WardrobeInsightsScreenState extends ConsumerState<WardrobeInsightsScreen>
                           padding: const EdgeInsets.all(16),
                           child: Row(
                             children: [
-                              const Icon(LucideIcons.indianRupee, color: AppColors.primary),
+                              Icon(LucideIcons.indianRupee, color: AppColors.primary),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
@@ -302,7 +302,7 @@ class _WardrobeInsightsScreenState extends ConsumerState<WardrobeInsightsScreen>
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
-                    const Icon(LucideIcons.sparkles, color: AppColors.primary, size: 32),
+                    Icon(LucideIcons.sparkles, color: AppColors.primary, size: 32),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Text(

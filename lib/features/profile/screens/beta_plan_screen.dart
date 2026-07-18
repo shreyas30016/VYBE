@@ -18,7 +18,7 @@ class BetaPlanScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, color: AppColors.textPrimary),
+          icon: Icon(LucideIcons.arrowLeft, color: AppColors.textPrimary),
           onPressed: () => context.pop(),
         ),
         title: Text('VYBE Beta Plan', style: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary)),
@@ -34,7 +34,7 @@ class BetaPlanScreen extends StatelessWidget {
                 borderRadius: 24,
                 child: Column(
                   children: [
-                    const Icon(LucideIcons.sparkles, color: AppColors.primary, size: 48),
+                    Icon(LucideIcons.sparkles, color: AppColors.primary, size: 48),
                     const SizedBox(height: 16),
                     Text(
                       'VYBE Pro (Coming Soon)',
@@ -73,7 +73,7 @@ class BetaPlanScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
-                      side: const BorderSide(color: AppColors.primary),
+                      side: BorderSide(color: AppColors.primary),
                     ),
                   ),
                   child: Text('Join Pro Waitlist', style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold)),

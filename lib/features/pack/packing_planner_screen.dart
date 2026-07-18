@@ -243,7 +243,7 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
                                             color: AppColors.primary.withOpacity(0.2),
                                             borderRadius: BorderRadius.circular(16),
                                           ),
-                                          child: const Icon(LucideIcons.plane, color: AppColors.primary, size: 32),
+                                          child: Icon(LucideIcons.plane, color: AppColors.primary, size: 32),
                                         ),
                                         const SizedBox(width: 16),
                                         Expanded(
@@ -281,7 +281,7 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
                         ),
                       );
                     },
-                    loading: () => const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: AppColors.primary))),
+                    loading: () => $1liverFillRemaining(child: Center(child: CircularProgressIndicator(color: AppColors.primary))),
                     error: (e, st) => SliverFillRemaining(child: Center(child: Text('Error loading trips', style: TextStyle(color: Colors.white)))),
                   ),
                 ],
@@ -293,7 +293,7 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const CircularProgressIndicator(color: AppColors.primary),
+                        CircularProgressIndicator(color: AppColors.primary),
                         const SizedBox(height: 20),
                         Text('Crafting your perfect trip plan...', style: AppTypography.bodyMedium.copyWith(color: Colors.white)),
                       ],

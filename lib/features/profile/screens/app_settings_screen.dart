@@ -10,6 +10,7 @@ import '../../../core/components/glass_container.dart';
 import '../../../core/components/ambient_background.dart';
 import '../../../providers/user_provider.dart';
 import '../../../data/models/user_profile.dart';
+import '../../../providers/theme_provider.dart';
 
 class AppSettingsScreen extends ConsumerStatefulWidget {
   const AppSettingsScreen({super.key});
@@ -41,7 +42,7 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, color: AppColors.textPrimary),
+          icon: Icon(LucideIcons.arrowLeft, color: AppColors.textPrimary),
           onPressed: () => context.pop(),
         ),
         title: Text('App Settings', style: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary)),
@@ -67,16 +68,13 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen> {
                         () {
                           _showSelectionModal('Theme', ['System', 'Light', 'Dark'], profile.appTheme, (val) {
                             ref.read(userRepositoryProvider).updateProfile(profile.copyWith(appTheme: val));
-                          });
-                        }
-                      ),
-                      _buildDivider(),
-                      _buildSettingsSelector(
-                        'Accent Color', 
-                        profile.accentColor, 
-                        () {
-                          _showSelectionModal('Accent Color', ['Neon Green', 'Purple', 'Blue', 'Orange', 'Pink'], profile.accentColor, (val) {
-                            ref.read(userRepositoryProvider).updateProfile(profile.copyWith(accentColor: val));
+                            if (val == 'Light') {
+                              ref.read(themeProvider.notifier).setTheme(ThemeMode.light);
+                            } else if (val == 'Dark') {
+                              ref.read(themeProvider.notifier).setTheme(ThemeMode.dark);
+                            } else {
+                              ref.read(themeProvider.notifier).setTheme(ThemeMode.system);
+                            }
                           });
                         }
                       ),
@@ -147,13 +145,13 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen> {
                           'Clear Cache',
                           style: AppTypography.bodyMedium.copyWith(color: AppColors.error),
                         ),
-                        trailing: const Icon(LucideIcons.trash2, color: AppColors.error, size: 20),
+                        trailing: Icon(LucideIcons.trash2, color: AppColors.error, size: 20),
                         onTap: () {
                           setState(() {
                             _cacheSize = '0 MB';
                           });
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Cache cleared'), backgroundColor: AppColors.success),
+                            SnackBar(content: Text('Cache cleared'), backgroundColor: AppColors.success),
                           );
                         },
                       ),
@@ -209,7 +207,7 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen> {
               ),
               ...options.map((opt) => ListTile(
                 title: Text(opt, style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary)),
-                trailing: opt == currentValue ? const Icon(LucideIcons.check, color: AppColors.primary) : null,
+                trailing: opt == currentValue ? Icon(LucideIcons.check, color: AppColors.primary) : null,
                 onTap: () {
                   onSelected(opt);
                   ctx.pop();
@@ -238,16 +236,16 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen> {
               Text('Developer Options', style: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary)),
               const SizedBox(height: 24),
               ListTile(
-                title: const Text('Simulate Crash', style: TextStyle(color: AppColors.textPrimary)),
-                leading: const Icon(LucideIcons.alertTriangle, color: AppColors.error),
+                title: Text('Simulate Crash', style: TextStyle(color: AppColors.textPrimary)),
+                leading: Icon(LucideIcons.alertTriangle, color: AppColors.error),
                 onTap: () {
                   ctx.pop();
                   throw Exception('Simulated Crash');
                 },
               ),
               ListTile(
-                title: const Text('Reset All Settings', style: TextStyle(color: AppColors.textPrimary)),
-                leading: const Icon(LucideIcons.refreshCw, color: AppColors.textPrimary),
+                title: Text('Reset All Settings', style: TextStyle(color: AppColors.textPrimary)),
+                leading: Icon(LucideIcons.refreshCw, color: AppColors.textPrimary),
                 onTap: () {
                   ctx.pop();
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings Reset (Mock)')));
@@ -310,7 +308,7 @@ class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen> {
             style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(width: 8),
-          const Icon(LucideIcons.chevronRight, color: AppColors.textSecondary, size: 20),
+          Icon(LucideIcons.chevronRight, color: AppColors.textSecondary, size: 20),
         ],
       ),
       onTap: onTap,

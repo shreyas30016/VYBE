@@ -66,7 +66,7 @@ class _TripCalendarScreenState extends ConsumerState<TripCalendarScreen> {
           ),
         );
       },
-      loading: () => const Scaffold(
+      loading: () => Scaffold(
         backgroundColor: AppColors.background,
         body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
       ),
@@ -94,7 +94,7 @@ class _TripCalendarScreenState extends ConsumerState<TripCalendarScreen> {
                 child: Text(trip.name, style: AppTypography.headingMedium.copyWith(color: Colors.white), overflow: TextOverflow.ellipsis),
               ),
               IconButton(
-                icon: const Icon(LucideIcons.calendarPlus, color: AppColors.primary),
+                icon: Icon(LucideIcons.calendarPlus, color: AppColors.primary),
                 onPressed: () => _addToGoogleCalendar(trip),
                 tooltip: 'Add to Google Calendar',
               ),
@@ -202,7 +202,7 @@ class _TripCalendarScreenState extends ConsumerState<TripCalendarScreen> {
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      const Icon(LucideIcons.cloudSun, color: AppColors.primary, size: 28),
+                      Icon(LucideIcons.cloudSun, color: AppColors.primary, size: 28),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Column(
@@ -227,7 +227,7 @@ class _TripCalendarScreenState extends ConsumerState<TripCalendarScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(LucideIcons.sparkles, color: AppColors.primary, size: 20),
+                          Icon(LucideIcons.sparkles, color: AppColors.primary, size: 20),
                           const SizedBox(width: 8),
                           Text('AI Stylist Choice', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                         ],
@@ -288,7 +288,7 @@ class _TripCalendarScreenState extends ConsumerState<TripCalendarScreen> {
                         const Icon(LucideIcons.shoppingBag, color: Colors.white54, size: 16),
                         const SizedBox(width: 12),
                         Expanded(child: Text('${item.quantity}x ${item.name}', style: const TextStyle(color: Colors.white))),
-                        const Icon(LucideIcons.externalLink, color: AppColors.primary, size: 16),
+                        Icon(LucideIcons.externalLink, color: AppColors.primary, size: 16),
                       ],
                     ),
                   )).toList(),

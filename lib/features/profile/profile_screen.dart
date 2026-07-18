@@ -61,7 +61,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(LucideIcons.settings, color: AppColors.textPrimary),
+            icon: Icon(LucideIcons.settings, color: AppColors.textPrimary),
             onPressed: () {
               context.push('/settings/app');
             },
@@ -101,7 +101,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     color: const Color(0xFF222222),
                   ),
                   child: avatarUrl == null
-                      ? const Icon(LucideIcons.user, color: AppColors.textSecondary, size: 40)
+                      ? Icon(LucideIcons.user, color: AppColors.textSecondary, size: 40)
                       : null,
                 ),
               ),
@@ -120,7 +120,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     style: AppTypography.headingLarge.copyWith(color: AppColors.textPrimary),
                   ),
                   const SizedBox(width: 8),
-                  const Icon(LucideIcons.edit2, color: AppColors.textSecondary, size: 16),
+                  Icon(LucideIcons.edit2, color: AppColors.textSecondary, size: 16),
                 ],
               ),
             ),
@@ -142,7 +142,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(LucideIcons.sparkles, color: AppColors.primary, size: 16),
+                  Icon(LucideIcons.sparkles, color: AppColors.primary, size: 16),
                   const SizedBox(width: 8),
                   Text(
                     'Style Score: 94',
@@ -176,7 +176,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             _buildSettingsTile('Wardrobe Insights', LucideIcons.barChart2, '/settings/insights'),
             _buildSettingsTile('Notifications', LucideIcons.bell, '/settings/notifications'),
             _buildSettingsTile('App Settings', LucideIcons.settings, '/settings/app'),
-            _buildSettingsTile('VYBE Beta Plan', LucideIcons.star, '/settings/beta'),
             
             const SizedBox(height: 32),
             
@@ -236,7 +235,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             title,
             style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary),
           ),
-          trailing: const Icon(LucideIcons.chevronRight, color: AppColors.textSecondary, size: 20),
+          trailing: Icon(LucideIcons.chevronRight, color: AppColors.textSecondary, size: 20),
           onTap: () {
             context.push(route);
           },
@@ -266,7 +265,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   Text('Developer Tools', style: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary)),
                   IconButton(
-                    icon: const Icon(LucideIcons.x, color: AppColors.textSecondary),
+                    icon: Icon(LucideIcons.x, color: AppColors.textSecondary),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],

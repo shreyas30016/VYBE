@@ -29,7 +29,7 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
         titleTextStyle: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary),
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        iconTheme: IconThemeData(color: AppColors.textPrimary),
       ),
       useMaterial3: false,
     );

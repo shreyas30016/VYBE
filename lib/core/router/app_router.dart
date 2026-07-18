@@ -219,7 +219,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                     child: Container(
                       height: 64,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1B1B1B).withValues(alpha: 0.7), // AppColors.card
+                        color: Color(0xFF1B1B1B).withValues(alpha: 0.7), // AppColors.card
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
                           color: Colors.white.withValues(alpha: 0.1),
