@@ -28,7 +28,7 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
 
   final List<String> _categories = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Shoes'];
   final List<String> _seasons = ['Summer', 'Winter', 'Spring', 'Fall', 'All Season'];
-  final List<String> _colors = ['Black', 'White', 'Blue', 'Red', 'Green', 'Brown', 'Grey', 'Navy'];
+  // Colors are generated dynamically now
 
   @override
   void dispose() {
@@ -84,7 +84,10 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
           ),
           IconButton(
             icon: Icon(LucideIcons.slidersHorizontal, color: (_selectedSeason != null || _selectedColor != null) ? AppColors.primary : AppColors.textPrimary),
-            onPressed: _showFilterSheet,
+            onPressed: () {
+              final items = ref.read(wardrobeItemsProvider).valueOrNull ?? [];
+              _showFilterSheet(items);
+            },
           ),
           const SizedBox(width: AppSpacing.sm),
         ],
@@ -304,10 +307,22 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
     return 'Worn ${days}d ago';
   }
 
-  void _showFilterSheet() {
+  void _showFilterSheet(List<ClothingItem> items) {
+    final Set<String> dynamicColors = {'Black', 'White', 'Blue', 'Red', 'Green', 'Brown', 'Grey', 'Navy'};
+    for (var item in items) {
+      if (item.color != null && item.color!.isNotEmpty) {
+        final c = item.color!.trim();
+        if (c.isNotEmpty) {
+           dynamicColors.add(c[0].toUpperCase() + c.substring(1).toLowerCase());
+        }
+      }
+    }
+    final allColors = dynamicColors.toList()..sort();
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.card,
+      isScrollControlled: true, // Allow it to be taller if needed
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (context) {
         return StatefulBuilder(
@@ -363,7 +378,7 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: _colors.map((color) {
+                    children: allColors.map((color) {
                       final isSelected = _selectedColor == color;
                       return ChoiceChip(
                         label: Text(color, style: TextStyle(color: isSelected ? Colors.black : Colors.white)),
@@ -391,7 +406,7 @@ class _ClosetHubScreenState extends ConsumerState<ClosetHubScreen> {
                       child: const Text('Apply Filters', style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16 + AppSpacing.bottomNavClearance),
                 ],
               ),
             );
