@@ -553,6 +553,86 @@ Each object should be:
     }
   }
 
+  Future<Map<String, dynamic>> generateTripPlan({
+    required String destination,
+    required DateTime startDate,
+    required DateTime endDate,
+    required String purpose,
+    required List<dynamic> wardrobe,
+  }) async {
+    try {
+      final daysCount = endDate.difference(startDate).inDays + 1;
+      final wardrobeStr = wardrobe.map((item) => "{id: ${item.id}, category: ${item.category}, color: ${item.color}, subCategory: ${item.subCategory}}").join(", ");
+
+      final systemPrompt = '''
+You are an expert travel fashion planner. Create a detailed trip plan for a $daysCount-day trip to $destination.
+The purpose is $purpose.
+Available Wardrobe: $wardrobeStr
+
+You must return ONLY a valid JSON object matching exactly this structure:
+{
+  "days": [
+    {
+      "date": "YYYY-MM-DD",
+      "weatherDescription": "String (e.g. 30°C Sunny)",
+      "outfitSuggestion": "String description of the outfit",
+      "plannedActivities": ["String activity 1", "String activity 2"],
+      "mappedClothingItemIds": ["id1", "id2"]
+    }
+  ],
+  "packingList": [
+    {
+      "name": "String (e.g. T-Shirts)",
+      "quantity": 2,
+      "category": "Clothing",
+      "isMissing": false
+    }
+  ]
+}
+Rules:
+1. For mappedClothingItemIds, ONLY use IDs from the Available Wardrobe. Do not hallucinate IDs.
+2. Ensure you suggest a variety of outfits across the days.
+3. For packingList, set isMissing to true if it is an essential item NOT found in the Available Wardrobe (e.g., Sunscreen, Sunglasses, Formal Shoes if they don't have any).
+4. Do not wrap in markdown or backticks. Return raw JSON.
+''';
+
+      Map<String, dynamic> parseResponse(String text) {
+        var jsonText = text.trim();
+        final jsonStart = jsonText.indexOf('{');
+        final jsonEnd = jsonText.lastIndexOf('}');
+        if (jsonStart != -1 && jsonEnd != -1) {
+          jsonText = jsonText.substring(jsonStart, jsonEnd + 1);
+        } else {
+          throw Exception('No JSON object found in response');
+        }
+        return jsonDecode(jsonText) as Map<String, dynamic>;
+      }
+
+      return await _withModelRouter(
+        (model, attempt) async {
+          final chat = model.startChat(history: [
+            Content.text(systemPrompt),
+            Content.model([TextPart('Understood. I will strictly return the JSON object.')])
+          ]);
+
+          final response = await chat.sendMessage(Content.text('Generate the plan. Dates: ${startDate.toIso8601String()} to ${endDate.toIso8601String()}'));
+
+          if (response.text != null) {
+            return parseResponse(response.text!);
+          }
+          throw Exception('No text returned');
+        },
+        openRouterFallback: () async {
+          final rawText = await _NvidiaNimProvider().generateText(systemPrompt, 'Generate the plan. Dates: ${startDate.toIso8601String()} to ${endDate.toIso8601String()}');
+          return parseResponse(rawText);
+        }
+      );
+    } catch (e) {
+      debugPrint('Gemini generate trip plan error: $e');
+      throw Exception('Failed to generate trip plan.');
+    }
+  }
+
   Future<OutfitSuggestion> generateOutfitSuggestion(
     List<dynamic> wardrobe, 
     {dynamic weatherInfo, String? occasion}

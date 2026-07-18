@@ -22,6 +22,9 @@ Future<void> openHiveBoxes(String uid) async {
       if (!Hive.isBoxOpen('chats_$uid')) {
         await Hive.openBox<Map>('chats_$uid');
       }
+      if (!Hive.isBoxOpen('trips_$uid')) {
+        await Hive.openBox<Map>('trips_$uid');
+      }
     } catch (e) {
       debugPrint('Error opening Hive boxes for uid $uid: $e');
       _initFutures.remove(uid); // Allow retry on failure

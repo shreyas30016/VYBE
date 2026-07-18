@@ -14,6 +14,7 @@ import '../../features/profile/profile_screen.dart';
 import '../../features/discover/ai_discover_screen.dart';
 import '../../features/stylist/ai_stylist_chat_screen.dart';
 import '../../features/pack/packing_planner_screen.dart';
+import '../../features/pack/screens/trip_calendar_screen.dart';
 import '../../features/auth/auth_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/profile/screens/app_settings_screen.dart';
@@ -383,7 +384,17 @@ final routerProvider = Provider<GoRouter>((ref) {
     GoRoute(
       path: '/pack',
       parentNavigatorKey: rootNavigatorKey,
-      builder: (context, state) => const PackingPlannerScreen(),
+      builder: (context, state) => const TripPlannerScreen(),
+      routes: [
+        GoRoute(
+          path: 'trip/:id',
+          parentNavigatorKey: rootNavigatorKey,
+          builder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return TripCalendarScreen(tripId: id);
+          },
+        ),
+      ],
     ),
     GoRoute(
       path: '/settings',
