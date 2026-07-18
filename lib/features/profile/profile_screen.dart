@@ -27,7 +27,6 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   int _versionTaps = 0;
-  bool _isUploading = false;
   @override
   Widget build(BuildContext context) {
     final uid = Supabase.instance.client.auth.currentUser?.id ?? 'local';
@@ -35,6 +34,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     
     final name = userProfileAsync.valueOrNull?.name ?? 'Shreyas';
     final avatarUrl = userProfileAsync.valueOrNull?.profileImageUrl ?? Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] as String?;
+
+    final styles = userProfileAsync.valueOrNull?.styles ?? [];
+    final stylesString = styles.isNotEmpty ? styles.join(' • ') : 'No styles selected';
 
     final wardrobeItemsAsync = ref.watch(wardrobeItemsProvider);
     final outfitHistoryAsync = ref.watch(outfitHistoryProvider);
@@ -110,7 +112,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             
             // Name
             GestureDetector(
-              onTap: () => _showEditProfileDialog(context, ref, name),
+              onTap: () => context.push('/settings'),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -128,7 +130,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             
             // Style Tags
             Text(
-              'Minimalist • Balanced • Smart',
+              stylesString,
               style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
             ),
             
@@ -174,6 +176,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             _buildSettingsTile('Style Preferences', LucideIcons.sparkles, '/settings/style'),
             _buildSettingsTile('Wardrobe Insights', LucideIcons.barChart2, '/settings/insights'),
             _buildSettingsTile('Notifications', LucideIcons.bell, '/settings/notifications'),
+            _buildSettingsTile('App Settings', LucideIcons.settings, '/settings/app'),
+            _buildSettingsTile('VYBE Beta Plan', LucideIcons.star, '/settings/beta'),
             
             const SizedBox(height: 32),
             
@@ -240,119 +244,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
       ),
       ),
-    );
-  }
-
-  void _showEditProfileDialog(BuildContext context, WidgetRef ref, String currentName) {
-    final nameController = TextEditingController(text: currentName);
-    
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: GlassContainer(
-                padding: const EdgeInsets.all(24),
-                borderRadius: 24,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Edit Profile', style: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary)),
-                    const SizedBox(height: 24),
-                    TextField(
-                      controller: nameController,
-                      style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: InputDecoration(
-                        labelText: 'Name',
-                        labelStyle: const TextStyle(color: AppColors.textSecondary),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.primary),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: _isUploading ? null : () async {
-                        final picker = ImagePicker();
-                        final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-                        if (pickedFile != null) {
-                          setState(() => _isUploading = true);
-                          try {
-                            final bytes = await pickedFile.readAsBytes();
-                            final extension = pickedFile.name.split('.').last;
-                            final userRepo = ref.read(userRepositoryProvider);
-                            final uploadedUrl = await userRepo.uploadProfileImage(bytes, extension);
-                            
-                            if (uploadedUrl != null) {
-                              final uid = Supabase.instance.client.auth.currentUser!.id;
-                              final currentProfile = await ref.read(userRepositoryProvider).getProfile(uid).first;
-                              if (currentProfile != null) {
-                                await userRepo.updateProfile(currentProfile.copyWith(
-                                  profileImageUrl: uploadedUrl,
-                                  name: nameController.text,
-                                ));
-                              }
-                            }
-                          } catch (e) {
-                            debugPrint('Error uploading image: $e');
-                          } finally {
-                            setState(() => _isUploading = false);
-                            if (ctx.mounted) ctx.pop();
-                          }
-                        }
-                      },
-                      icon: _isUploading 
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(LucideIcons.camera),
-                      label: Text(_isUploading ? 'Uploading...' : 'Update Picture'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.card,
-                        foregroundColor: AppColors.textPrimary,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          final uid = Supabase.instance.client.auth.currentUser!.id;
-                          final currentProfile = await ref.read(userRepositoryProvider).getProfile(uid).first;
-                          if (currentProfile != null) {
-                            await ref.read(userRepositoryProvider).updateProfile(
-                              currentProfile.copyWith(name: nameController.text),
-                            );
-                          }
-                          if (ctx.mounted) ctx.pop();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: Text('Save Changes', style: AppTypography.bodyMedium.copyWith(color: Colors.black, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-        );
-      },
     );
   }
 

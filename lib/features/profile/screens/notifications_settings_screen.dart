@@ -137,6 +137,49 @@ class NotificationsSettingsScreen extends ConsumerWidget {
                           );
                         }
                       ),
+                      _buildDivider(),
+                      _buildSettingsToggle(
+                        'New AI Features', 
+                        profile.notifNewAi, 
+                        (val) {
+                          ref.read(userRepositoryProvider).updateProfile(
+                            profile.copyWith(notifNewAi: val)
+                          );
+                        }
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              _buildSectionTitle('Offers & Updates', 'Stay in the loop.'),
+              GlassContainer(
+                padding: EdgeInsets.zero,
+                borderRadius: 16,
+                child: Material(
+                  color: Colors.transparent,
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    children: [
+                      _buildSettingsToggle(
+                        'Sale Alerts', 
+                        profile.notifSale, 
+                        (val) {
+                          ref.read(userRepositoryProvider).updateProfile(
+                            profile.copyWith(notifSale: val)
+                          );
+                        }
+                      ),
+                      _buildDivider(),
+                      _buildSettingsToggle(
+                        'Beta Features', 
+                        profile.notifBeta, 
+                        (val) {
+                          ref.read(userRepositoryProvider).updateProfile(
+                            profile.copyWith(notifBeta: val)
+                          );
+                        }
+                      ),
                     ],
                   ),
                 ),

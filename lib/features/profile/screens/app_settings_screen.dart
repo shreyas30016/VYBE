@@ -2,17 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/components/glass_container.dart';
 import '../../../core/components/ambient_background.dart';
+import '../../../providers/user_provider.dart';
 
-class AppSettingsScreen extends ConsumerWidget {
+class AppSettingsScreen extends ConsumerStatefulWidget {
   const AppSettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppSettingsScreen> createState() => _AppSettingsScreenState();
+}
+
+class _AppSettingsScreenState extends ConsumerState<AppSettingsScreen> {
+  int _versionTapCount = 0;
+  String _cacheSize = '124 MB';
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = Supabase.instance.client.auth.currentUser?.id ?? 'local';
+    final userProfileAsync = ref.watch(userProfileProvider(uid));
+    final profile = userProfileAsync.valueOrNull;
+
+    if (profile == null) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -39,9 +60,25 @@ class AppSettingsScreen extends ConsumerWidget {
                   clipBehavior: Clip.antiAlias,
                   child: Column(
                     children: [
-                      _buildSettingsToggle('Dark Mode', true, (val) {}),
+                      _buildSettingsSelector(
+                        'Theme', 
+                        profile.appTheme, 
+                        () {
+                          _showSelectionModal('Theme', ['System', 'Light', 'Dark'], profile.appTheme, (val) {
+                            ref.read(userRepositoryProvider).updateProfile(profile.copyWith(appTheme: val));
+                          });
+                        }
+                      ),
                       _buildDivider(),
-                      _buildSettingsSelector('Accent Color', 'Lime', () {}),
+                      _buildSettingsSelector(
+                        'Accent Color', 
+                        profile.accentColor, 
+                        () {
+                          _showSelectionModal('Accent Color', ['Neon Green', 'Purple', 'Blue', 'Orange', 'Pink'], profile.accentColor, (val) {
+                            ref.read(userRepositoryProvider).updateProfile(profile.copyWith(accentColor: val));
+                          });
+                        }
+                      ),
                     ],
                   ),
                 ),
@@ -56,9 +93,21 @@ class AppSettingsScreen extends ConsumerWidget {
                   clipBehavior: Clip.antiAlias,
                   child: Column(
                     children: [
-                      _buildSettingsSelector('AI Model', 'Balanced', () {}),
+                      _buildSettingsToggle(
+                        'Save AI Chats', 
+                        profile.saveAiChats, 
+                        (val) {
+                          ref.read(userRepositoryProvider).updateProfile(profile.copyWith(saveAiChats: val));
+                        }
+                      ),
                       _buildDivider(),
-                      _buildSettingsSelector('Camera Quality', 'High', () {}),
+                      _buildSettingsToggle(
+                        'Personalization', 
+                        profile.personalization, 
+                        (val) {
+                          ref.read(userRepositoryProvider).updateProfile(profile.copyWith(personalization: val));
+                        }
+                      ),
                     ],
                   ),
                 ),
@@ -73,9 +122,23 @@ class AppSettingsScreen extends ConsumerWidget {
                   clipBehavior: Clip.antiAlias,
                   child: Column(
                     children: [
-                      _buildSettingsToggle('Store Images Locally', true, (val) {}),
+                      _buildSettingsToggle(
+                        'Upload Analytics', 
+                        profile.uploadAnalytics, 
+                        (val) {
+                          ref.read(userRepositoryProvider).updateProfile(profile.copyWith(uploadAnalytics: val));
+                        }
+                      ),
                       _buildDivider(),
-                      _buildSettingsSelector('Cache Size', '124 MB', () {}),
+                      _buildSettingsToggle(
+                        'Crash Reports', 
+                        profile.crashReports, 
+                        (val) {
+                          ref.read(userRepositoryProvider).updateProfile(profile.copyWith(crashReports: val));
+                        }
+                      ),
+                      _buildDivider(),
+                      _buildSettingsSelector('Cache Size', _cacheSize, () {}),
                       _buildDivider(),
                       ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
@@ -85,6 +148,9 @@ class AppSettingsScreen extends ConsumerWidget {
                         ),
                         trailing: const Icon(LucideIcons.trash2, color: AppColors.error, size: 20),
                         onTap: () {
+                          setState(() {
+                            _cacheSize = '0 MB';
+                          });
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Cache cleared'), backgroundColor: AppColors.success),
                           );
@@ -96,9 +162,25 @@ class AppSettingsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 40),
               Center(
-                child: Text(
-                  'VYBE Version 1.0.0',
-                  style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary.withValues(alpha: 0.5)),
+                child: GestureDetector(
+                  onTap: () {
+                    _versionTapCount++;
+                    if (_versionTapCount >= 7) {
+                      _versionTapCount = 0;
+                      _showDeveloperBottomSheet();
+                    } else if (_versionTapCount > 3) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('You are ${7 - _versionTapCount} steps away from being a developer.'),
+                          duration: const Duration(seconds: 1),
+                        )
+                      );
+                    }
+                  },
+                  child: Text(
+                    'VYBE Version 1.0.0',
+                    style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary.withValues(alpha: 0.5)),
+                  ),
                 ),
               ),
               const SizedBox(height: 40),
@@ -106,6 +188,75 @@ class AppSettingsScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showSelectionModal(String title, List<String> options, String currentValue, Function(String) onSelected) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return GlassContainer(
+          borderRadius: 24,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text('Select $title', style: AppTypography.headingSmall.copyWith(color: AppColors.textPrimary)),
+              ),
+              ...options.map((opt) => ListTile(
+                title: Text(opt, style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary)),
+                trailing: opt == currentValue ? const Icon(LucideIcons.check, color: AppColors.primary) : null,
+                onTap: () {
+                  onSelected(opt);
+                  ctx.pop();
+                },
+              )),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      }
+    );
+  }
+
+  void _showDeveloperBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return GlassContainer(
+          borderRadius: 24,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Developer Options', style: AppTypography.headingMedium.copyWith(color: AppColors.textPrimary)),
+              const SizedBox(height: 24),
+              ListTile(
+                title: const Text('Simulate Crash', style: TextStyle(color: AppColors.textPrimary)),
+                leading: const Icon(LucideIcons.alertTriangle, color: AppColors.error),
+                onTap: () {
+                  ctx.pop();
+                  throw Exception('Simulated Crash');
+                },
+              ),
+              ListTile(
+                title: const Text('Reset All Settings', style: TextStyle(color: AppColors.textPrimary)),
+                leading: const Icon(LucideIcons.refreshCw, color: AppColors.textPrimary),
+                onTap: () {
+                  ctx.pop();
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings Reset (Mock)')));
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      }
     );
   }
 

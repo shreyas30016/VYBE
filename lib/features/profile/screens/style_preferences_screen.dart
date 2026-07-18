@@ -19,14 +19,23 @@ class StylePreferencesScreen extends ConsumerStatefulWidget {
 
 class _StylePreferencesScreenState extends ConsumerState<StylePreferencesScreen> {
   List<String> _selectedStyles = [];
-  final List<String> _styles = [
-    'Minimalist', 'Streetwear', 'Old Money', 'Quiet Luxury', 
-    'Casual', 'Business', 'Korean', 'Y2K', 'Techwear', 'Vintage'
+  List<String> _selectedBrands = [];
+  
+  final List<String> _availableStyles = [
+    'Casual', 'Streetwear', 'Minimal', 'Old Money', 'Formal', 
+    'Athleisure', 'Y2K', 'Traditional', 'Boho', 'Luxury'
   ];
 
-  final List<String> _brands = ['Nike', 'Uniqlo', 'Zara', 'H&M'];
+  final List<String> _availableBrands = [
+    'Nike', 'Adidas', 'H&M', 'Uniqlo', 'Zara', 'Levis', 'Puma', 'Rare Rabbit'
+  ];
   
   double _creativity = 0.5;
+  String _weatherPref = 'Auto Detect';
+
+  final List<String> _weatherOptions = [
+    'Auto Detect', 'Use Current Weather', 'Ignore Weather', 'Manual Temperature'
+  ];
 
   bool _isInitialized = false;
 
@@ -36,9 +45,15 @@ class _StylePreferencesScreenState extends ConsumerState<StylePreferencesScreen>
     final userProfileAsync = ref.watch(userProfileProvider(uid));
     
     if (!_isInitialized && userProfileAsync.valueOrNull != null) {
-      final styleStr = userProfileAsync.valueOrNull?.styleBaseline ?? '';
-      if (styleStr.isNotEmpty) {
-        _selectedStyles = styleStr.split(',').map((e) => e.trim()).toList();
+      final profile = userProfileAsync.valueOrNull!;
+      _selectedStyles = List.from(profile.styles);
+      _selectedBrands = List.from(profile.favoriteBrands);
+      _creativity = profile.outfitCreativity;
+      _weatherPref = profile.weatherPreference;
+      
+      // Fallback if old data existed
+      if (_selectedStyles.isEmpty && profile.styleBaseline != null) {
+        _selectedStyles = profile.styleBaseline!.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
       }
       _isInitialized = true;
     }
@@ -64,7 +79,7 @@ class _StylePreferencesScreenState extends ConsumerState<StylePreferencesScreen>
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _styles.map((style) {
+                children: _availableStyles.map((style) {
                   final isSelected = _selectedStyles.contains(style);
                   return FilterChip(
                     label: Text(style),
@@ -101,28 +116,35 @@ class _StylePreferencesScreenState extends ConsumerState<StylePreferencesScreen>
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: [
-                  ..._brands.map((brand) => Chip(
-                    label: Text(brand, style: const TextStyle(color: AppColors.textPrimary)),
+                children: _availableBrands.map((brand) {
+                  final isSelected = _selectedBrands.contains(brand);
+                  return FilterChip(
+                    label: Text(brand),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _selectedBrands.add(brand);
+                        } else {
+                          _selectedBrands.remove(brand);
+                        }
+                      });
+                    },
                     backgroundColor: Colors.black45,
-                    deleteIcon: const Icon(LucideIcons.x, size: 16, color: AppColors.textSecondary),
-                    onDeleted: () {},
+                    selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                    checkmarkColor: AppColors.primary,
+                    labelStyle: TextStyle(
+                      color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                      side: BorderSide(
+                        color: isSelected ? AppColors.primary : Colors.white.withValues(alpha: 0.1),
+                      ),
                     ),
-                  )),
-                  ActionChip(
-                    label: const Text('Add Brand', style: TextStyle(color: AppColors.primary)),
-                    avatar: const Icon(LucideIcons.plus, size: 16, color: AppColors.primary),
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: const BorderSide(color: AppColors.primary),
-                    ),
-                    onPressed: () {},
-                  )
-                ],
+                  );
+                }).toList(),
               ),
               
               const SizedBox(height: 32),
@@ -159,43 +181,27 @@ class _StylePreferencesScreenState extends ConsumerState<StylePreferencesScreen>
               GlassContainer(
                 padding: EdgeInsets.zero,
                 child: Column(
-                  children: [
-                    ListTile(
-                      title: Text('I get cold easily (Prefer layers)', style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary)),
-                      // ignore: deprecated_member_use
-                      trailing: Radio<int>(
-                        value: 0,
-                        groupValue: 0,
-                        activeColor: AppColors.primary,
-                        onChanged: (val) {},
-                      ),
-                      onTap: () {},
-                    ),
-                    Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
-                    ListTile(
-                      title: Text('Neutral', style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary)),
-                      // ignore: deprecated_member_use
-                      trailing: Radio<int>(
-                        value: 1,
-                        groupValue: 0,
-                        activeColor: AppColors.primary,
-                        onChanged: (val) {},
-                      ),
-                      onTap: () {},
-                    ),
-                    Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
-                    ListTile(
-                      title: Text('I run hot (Prefer breathable)', style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary)),
-                      // ignore: deprecated_member_use
-                      trailing: Radio<int>(
-                        value: 2,
-                        groupValue: 0,
-                        activeColor: AppColors.primary,
-                        onChanged: (val) {},
-                      ),
-                      onTap: () {},
-                    ),
-                  ],
+                  children: _weatherOptions.map((option) {
+                    final isSelected = _weatherPref == option;
+                    return Column(
+                      children: [
+                        ListTile(
+                          title: Text(option, style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary)),
+                          trailing: Radio<String>(
+                            value: option,
+                            groupValue: _weatherPref,
+                            activeColor: AppColors.primary,
+                            onChanged: (val) {
+                              if (val != null) setState(() => _weatherPref = val);
+                            },
+                          ),
+                          onTap: () => setState(() => _weatherPref = option),
+                        ),
+                        if (option != _weatherOptions.last)
+                          Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
+                      ],
+                    );
+                  }).toList(),
                 ),
               ),
               
@@ -209,7 +215,13 @@ class _StylePreferencesScreenState extends ConsumerState<StylePreferencesScreen>
                     final currentProfile = await ref.read(userRepositoryProvider).getProfile(uid).first;
                     if (currentProfile != null) {
                       await ref.read(userRepositoryProvider).updateProfile(
-                        currentProfile.copyWith(styleBaseline: _selectedStyles.join(', ')),
+                        currentProfile.copyWith(
+                          styles: _selectedStyles,
+                          favoriteBrands: _selectedBrands,
+                          outfitCreativity: _creativity,
+                          weatherPreference: _weatherPref,
+                          styleBaseline: _selectedStyles.join(', '), // fallback
+                        ),
                       );
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(

@@ -9,62 +9,106 @@ import '../../../core/components/glass_container.dart';
 import '../../../core/components/ambient_background.dart';
 import '../../../providers/wardrobe_provider.dart';
 import '../../../providers/outfit_provider.dart';
-import '../../../data/models/clothing_item.dart';
 
-class WardrobeInsightsScreen extends ConsumerWidget {
+class WardrobeInsightsScreen extends ConsumerStatefulWidget {
   const WardrobeInsightsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WardrobeInsightsScreen> createState() => _WardrobeInsightsScreenState();
+}
+
+class _WardrobeInsightsScreenState extends ConsumerState<WardrobeInsightsScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _animFloat;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
+    _animFloat = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic));
+    _animController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final wardrobe = ref.watch(wardrobeItemsProvider).valueOrNull ?? [];
     final outfits = ref.watch(outfitHistoryProvider).valueOrNull ?? [];
 
-    // Calculate item frequencies in outfits
-    final Map<String, int> itemFrequency = {};
+    // Calculations
+    final totalItems = wardrobe.length;
+    
+    // Most Used Color
+    final Map<String, int> colorCount = {};
     for (var item in wardrobe) {
-      itemFrequency[item.id] = 0;
+      final c = item.color?.toLowerCase() ?? 'unknown';
+      colorCount[c] = (colorCount[c] ?? 0) + 1;
     }
-    
-    for (var outfit in outfits) {
-      for (var itemId in outfit.itemIds) {
-        if (itemFrequency.containsKey(itemId)) {
-          itemFrequency[itemId] = itemFrequency[itemId]! + 1;
-        }
+    String mostUsedColor = 'N/A';
+    int maxColorCount = 0;
+    colorCount.forEach((key, value) {
+      if (value > maxColorCount) {
+        maxColorCount = value;
+        mostUsedColor = key;
       }
-    }
+    });
+    final colorPercentage = wardrobe.isEmpty ? 0.0 : (maxColorCount / totalItems);
 
-    // Find Most Worn
-    ClothingItem? mostWornItem;
-    int maxWears = 0;
-    
-    // Find Least Worn
-    ClothingItem? leastWornItem;
-    int minWears = 999999;
-    
-    int unwornCount = 0;
-
+    // Least Used Category
+    final Map<String, int> catCount = {};
     for (var item in wardrobe) {
-      final wears = itemFrequency[item.id] ?? 0;
-      if (wears > maxWears) {
-        maxWears = wears;
-        mostWornItem = item;
-      }
-      if (wears < minWears) {
-        minWears = wears;
-        leastWornItem = item;
-      }
-      if (wears == 0) {
-        unwornCount++;
-      }
+      catCount[item.category] = (catCount[item.category] ?? 0) + 1;
     }
-    
-    if (wardrobe.isEmpty) {
-      minWears = 0;
-    }
+    String leastUsedCategory = 'N/A';
+    int minCatCount = 9999;
+    catCount.forEach((key, value) {
+      if (value < minCatCount) {
+        minCatCount = value;
+        leastUsedCategory = key;
+      }
+    });
 
-    final unwornProgress = wardrobe.isEmpty ? 0.0 : 1.0 - (unwornCount / wardrobe.length);
-    final colorVariety = wardrobe.map((e) => e.color).toSet().length;
-    final colorProgress = wardrobe.isEmpty ? 0.0 : (colorVariety / 10.0).clamp(0.0, 1.0);
+    // Seasonal Coverage (mocking seasons)
+    int summerItems = 0;
+    int winterItems = 0;
+    for (var item in wardrobe) {
+      if (item.category.toLowerCase().contains('shirt') || item.category.toLowerCase().contains('short')) {
+        summerItems++;
+      } else {
+        winterItems++;
+      }
+    }
+    // ensure no zero division
+    final sumItems = (summerItems + winterItems == 0) ? 1 : summerItems + winterItems;
+
+    // Outfits calculation
+    final uniqueCategories = wardrobe.map((e) => e.category).toSet().length;
+    final diversityScore = wardrobe.isEmpty ? 0.0 : ((uniqueCategories / 5.0) * 100).clamp(0, 100).toDouble();
+
+    // Cost Per Wear
+    // We mock cost as 2500 per item for demo
+    int totalWears = outfits.fold(0, (sum, out) => sum + out.itemIds.length);
+    double costPerWear = totalWears == 0 ? 2500.0 : (totalItems * 2500) / totalWears;
+
+    // Smart Suggestion
+    String smartSuggestion = 'Add more items to your wardrobe for suggestions.';
+    if (totalItems > 0) {
+      final shirts = catCount.entries.where((e) => e.key.toLowerCase().contains('shirt')).fold(0, (sum, e) => sum + e.value);
+      final jackets = catCount.entries.where((e) => e.key.toLowerCase().contains('jacket') || e.key.toLowerCase().contains('outerwear')).fold(0, (sum, e) => sum + e.value);
+      
+      if (shirts > 10 && jackets < 3) {
+        smartSuggestion = 'You own $shirts Shirts but only $jackets Jackets.\nRecommendation: Buy a neutral overshirt.';
+      } else if (shirts < 5) {
+        smartSuggestion = 'You have plenty of bottoms but need more basic tees.';
+      } else {
+        smartSuggestion = 'Your wardrobe is well balanced! Keep it up.';
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -83,66 +127,189 @@ class WardrobeInsightsScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      'Most Worn', 
-                      mostWornItem?.subtype ?? (wardrobe.isEmpty ? 'No Items' : 'Tie'), 
-                      '$maxWears wears', 
-                      LucideIcons.flame, 
-                      AppColors.primary
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildStatCard(
-                      'Least Worn', 
-                      leastWornItem?.subtype ?? (wardrobe.isEmpty ? 'No Items' : 'Tie'), 
-                      '$minWears wears', 
-                      LucideIcons.snowflake, 
-                      Colors.blueAccent
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              
-              Text('Style Score Trend', style: AppTypography.headingSmall.copyWith(color: AppColors.textPrimary)),
-              const SizedBox(height: 16),
-              GlassContainer(
-                padding: const EdgeInsets.all(24),
+              // Total Items (Animated Counter)
+              Center(
                 child: Column(
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildBar(0.4, 'Mon'),
-                        _buildBar(0.5, 'Tue'),
-                        _buildBar(0.3, 'Wed'),
-                        _buildBar(0.7, 'Thu'),
-                        _buildBar(0.6, 'Fri'),
-                        _buildBar(0.9, 'Sat'),
-                        _buildBar(0.8, 'Sun'),
-                      ],
+                    Text('Total Items', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+                    AnimatedBuilder(
+                      animation: _animFloat,
+                      builder: (context, child) {
+                        return Text(
+                          (_animFloat.value * totalItems).toInt().toString(),
+                          style: AppTypography.headingLarge.copyWith(fontSize: 64, color: AppColors.textPrimary),
+                        );
+                      },
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
               
-              Text('Closet Health', style: AppTypography.headingSmall.copyWith(color: AppColors.textPrimary)),
+              Row(
+                children: [
+                  Expanded(
+                    child: GlassContainer(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          Text('Most Used Color', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: 80,
+                            width: 80,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                AnimatedBuilder(
+                                  animation: _animFloat,
+                                  builder: (context, child) {
+                                    return CircularProgressIndicator(
+                                      value: _animFloat.value * colorPercentage,
+                                      strokeWidth: 8,
+                                      backgroundColor: Colors.white.withValues(alpha: 0.1),
+                                      color: _getColorFromName(mostUsedColor),
+                                    );
+                                  }
+                                ),
+                                Center(
+                                  child: Text(
+                                    '${(colorPercentage * 100).toInt()}%',
+                                    style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                  ),
+                                )
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(mostUsedColor.toUpperCase(), style: AppTypography.captionBold.copyWith(color: AppColors.textPrimary)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        GlassContainer(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              const Icon(LucideIcons.arrowDownCircle, color: Colors.blueAccent),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Least Used', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+                                    Text(leastUsedCategory, style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    Text('$minCatCount items', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary, fontSize: 10)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        GlassContainer(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              const Icon(LucideIcons.indianRupee, color: AppColors.primary),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Cost / Wear', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+                                    Text('₹${costPerWear.toInt()}', style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+              
+              Text('Seasonal Coverage', style: AppTypography.headingSmall.copyWith(color: AppColors.textPrimary)),
               const SizedBox(height: 16),
               GlassContainer(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    _buildHealthItem('Unworn Items (0 wears)', '$unwornCount items', unwornProgress),
+                    _buildAnimatedBar('Summer', summerItems, sumItems, Colors.orangeAccent),
                     const SizedBox(height: 16),
-                    _buildHealthItem('Color Variety', '$colorVariety distinct colors', colorProgress),
-                    const SizedBox(height: 16),
-                    _buildHealthItem('Seasonal Coverage', 'Balanced', 0.8),
+                    _buildAnimatedBar('Winter', winterItems, sumItems, Colors.lightBlueAccent),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 32),
+              
+              Text('Outfit Diversity', style: AppTypography.headingSmall.copyWith(color: AppColors.textPrimary)),
+              const SizedBox(height: 16),
+              GlassContainer(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      height: 60,
+                      width: 60,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          AnimatedBuilder(
+                            animation: _animFloat,
+                            builder: (context, child) {
+                              return CircularProgressIndicator(
+                                value: _animFloat.value * (diversityScore / 100),
+                                strokeWidth: 6,
+                                backgroundColor: Colors.white.withValues(alpha: 0.1),
+                                color: AppColors.primary,
+                              );
+                            }
+                          ),
+                          Center(
+                            child: Text(
+                              '${diversityScore.toInt()}%',
+                              style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        'Your wardrobe covers a great mix of styles and categories!',
+                        style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 32),
+              
+              Text('Smart Suggestions', style: AppTypography.headingSmall.copyWith(color: AppColors.textPrimary)),
+              const SizedBox(height: 16),
+              GlassContainer(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    const Icon(LucideIcons.sparkles, color: AppColors.primary, size: 32),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        smartSuggestion,
+                        style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -155,47 +322,7 @@ class WardrobeInsightsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatCard(String title, String item, String stat, IconData icon, Color color) {
-    return GlassContainer(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 8),
-              Text(title, style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(item, style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 4),
-          Text(stat, style: AppTypography.captionBold.copyWith(color: color)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBar(double percentage, String label) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Container(
-          width: 24,
-          height: 100 * percentage,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: percentage + 0.1),
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(label, style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary, fontSize: 10)),
-      ],
-    );
-  }
-
-  Widget _buildHealthItem(String title, String value, double progress) {
+  Widget _buildAnimatedBar(String title, int count, int total, Color color) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -203,19 +330,41 @@ class WardrobeInsightsScreen extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(title, style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary)),
-            Text(value, style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+            Text(count.toString(), style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
           ],
         ),
         const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: progress,
-          backgroundColor: Colors.white.withValues(alpha: 0.1),
-          valueColor: AlwaysStoppedAnimation<Color>(
-            progress > 0.7 ? AppColors.success : progress > 0.4 ? Colors.amber : AppColors.error,
-          ),
-          borderRadius: BorderRadius.circular(4),
+        AnimatedBuilder(
+          animation: _animFloat,
+          builder: (context, child) {
+            return LinearProgressIndicator(
+              value: total == 0 ? 0 : (_animFloat.value * (count / total)),
+              backgroundColor: Colors.white.withValues(alpha: 0.1),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+              borderRadius: BorderRadius.circular(4),
+              minHeight: 8,
+            );
+          }
         ),
       ],
     );
+  }
+
+  Color _getColorFromName(String colorName) {
+    switch (colorName.toLowerCase()) {
+      case 'black': return Colors.black;
+      case 'white': return Colors.white;
+      case 'red': return Colors.red;
+      case 'blue': return Colors.blue;
+      case 'green': return Colors.green;
+      case 'yellow': return Colors.yellow;
+      case 'purple': return Colors.purple;
+      case 'pink': return Colors.pink;
+      case 'grey':
+      case 'gray': return Colors.grey;
+      case 'brown': return Colors.brown;
+      case 'orange': return Colors.orange;
+      default: return AppColors.primary;
+    }
   }
 }

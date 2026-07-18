@@ -20,6 +20,7 @@ import '../../features/profile/screens/app_settings_screen.dart';
 import '../../features/profile/screens/style_preferences_screen.dart';
 import '../../features/profile/screens/wardrobe_insights_screen.dart';
 import '../../features/profile/screens/notifications_settings_screen.dart';
+import '../../features/profile/screens/beta_plan_screen.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -408,6 +409,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       path: '/settings/notifications',
       parentNavigatorKey: rootNavigatorKey,
       builder: (context, state) => const NotificationsSettingsScreen(),
+    ),
+    GoRoute(
+      path: '/settings/beta',
+      parentNavigatorKey: rootNavigatorKey,
+      builder: (context, state) => const BetaPlanScreen(),
     ),
   ],
 );
