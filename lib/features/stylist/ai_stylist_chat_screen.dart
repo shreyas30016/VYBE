@@ -18,7 +18,7 @@ import '../../core/components/glass_container.dart';
 import '../../core/components/ambient_background.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 class ChatMessage {
   final String id;
   final String text;
@@ -89,9 +89,49 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
 
+  final stt.SpeechToText _speechToText = stt.SpeechToText();
+  bool _speechEnabled = false;
+  bool _isListening = false;
+
   @override
   void initState() {
     super.initState();
+    _initSpeech();
+  }
+
+  void _initSpeech() async {
+    _speechEnabled = await _speechToText.initialize(
+      onError: (val) => debugPrint('onError: $val'),
+      onStatus: (val) {
+        if (val == 'done' || val == 'notListening') {
+          setState(() => _isListening = false);
+        }
+      },
+    );
+    setState(() {});
+  }
+
+  void _startListening() async {
+    if (!_speechEnabled) {
+      _initSpeech();
+    }
+    await _speechToText.listen(
+      onResult: (result) {
+        setState(() {
+          _textController.text = result.recognizedWords;
+        });
+      },
+    );
+    setState(() {
+      _isListening = true;
+    });
+  }
+
+  void _stopListening() async {
+    await _speechToText.stop();
+    setState(() {
+      _isListening = false;
+    });
   }
 
 
@@ -746,11 +786,23 @@ class _AiStylistChatScreenState extends ConsumerState<AiStylistChatScreen> {
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   suffixIcon: IconButton(
-                    icon: Icon(LucideIcons.mic, color: AppColors.textSecondary, size: 20),
+                    icon: Icon(
+                      _isListening ? LucideIcons.micOff : LucideIcons.mic,
+                      color: _isListening ? AppColors.primary : AppColors.textSecondary,
+                      size: 20,
+                    ),
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Voice Input coming soon! 🎤')),
-                      );
+                      if (!_speechEnabled) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Speech recognition not available or permission denied.')),
+                        );
+                        return;
+                      }
+                      if (_isListening) {
+                        _stopListening();
+                      } else {
+                        _startListening();
+                      }
                     },
                   ),
                 ),
